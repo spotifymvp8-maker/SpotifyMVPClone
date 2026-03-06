@@ -12,6 +12,17 @@ class Token(BaseModel):
     refresh_token: str
 
 
+class LoginUserInfo(BaseModel):
+    id: UUID
+    email: str
+    username: str
+    avatar_url: str | None = None
+
+
+class TokenWithUser(Token):
+    user: LoginUserInfo
+
+
 class TokenData(BaseModel):
     user_id: UUID | None = None
     email: str | None = None
@@ -46,6 +57,17 @@ class UserUpdate(BaseModel):
     bio: str | None = None
 
 
+class UserProfileResponse(BaseModel):
+    """Публичный профиль (User Service, без email)."""
+    id: UUID
+    username: str
+    avatar_url: str | None = None
+    bio: str | None = None
+
+    class Config:
+        from_attributes = True
+
+
 # Track schemas
 class TrackBase(BaseModel):
     title: str
@@ -76,6 +98,11 @@ class TrackResponse(TrackBase):
 
     class Config:
         from_attributes = True
+
+
+class PlayRecord(BaseModel):
+    """Запрос на запись прослушивания."""
+    track_id: UUID
 
 
 # Album schemas
@@ -146,8 +173,10 @@ class PlaylistBase(BaseModel):
     is_public: bool = True
 
 
-class PlaylistCreate(PlaylistBase):
-    pass
+class PlaylistCreate(BaseModel):
+    """Создание плейлиста (owner_id задаётся из токена)."""
+    title: str
+    is_public: bool = True
 
 
 class PlaylistUpdate(BaseModel):

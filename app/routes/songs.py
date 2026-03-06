@@ -1,23 +1,43 @@
-"""Song routes."""
+"""Song routes — Track Service."""
 
 import random
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
 
 from app.database import get_db
+from app.dependencies import get_admin_user_id
 from app.models.track import Track
 from app.models.album import Album
 from app.schemas import TrackCreate, TrackResponse, TrackUpdate
 
 router = APIRouter()
 
+DEFAULT_LIMIT = 50
+MAX_LIMIT = 100
+
+
+@router.get("/health")
+def track_health():
+    """Health check для Track Service."""
+    return {"status": "ok", "service": "track"}
+
 
 @router.get("/", response_model=list[TrackResponse])
-def get_all_songs(db: Session = Depends(get_db)):
-    """Получить все треки."""
-    tracks = db.query(Track).all()
+def get_all_songs(
+    limit: int = Query(DEFAULT_LIMIT, ge=1, le=MAX_LIMIT),
+    offset: int = Query(0, ge=0),
+    db: Session = Depends(get_db),
+):
+    """Получить треки с пагинацией (доступно всем)."""
+    tracks = (
+        db.query(Track)
+        .order_by(Track.created_at.desc())
+        .offset(offset)
+        .limit(limit)
+        .all()
+    )
     return tracks
 
 
@@ -55,8 +75,12 @@ def get_song(track_id: UUID, db: Session = Depends(get_db)):
 
 
 @router.post("/", response_model=TrackResponse)
-def create_song(song_data: TrackCreate, db: Session = Depends(get_db)):
-    """Создать новый трек."""
+def create_song(
+    song_data: TrackCreate,
+    _: UUID = Depends(get_admin_user_id),
+    db: Session = Depends(get_db),
+):
+    """Создать новый трек (только админ)."""
     # Validate album if provided
     if song_data.album_id:
         album = db.query(Album).filter(Album.id == song_data.album_id).first()
@@ -74,8 +98,13 @@ def create_song(song_data: TrackCreate, db: Session = Depends(get_db)):
 
 
 @router.put("/{track_id}", response_model=TrackResponse)
-def update_song(track_id: UUID, song_data: TrackUpdate, db: Session = Depends(get_db)):
-    """Обновить трек."""
+def update_song(
+    track_id: UUID,
+    song_data: TrackUpdate,
+    _: UUID = Depends(get_admin_user_id),
+    db: Session = Depends(get_db),
+):
+    """Обновить трек (только админ)."""
     track = db.query(Track).filter(Track.id == track_id).first()
     if not track:
         raise HTTPException(
@@ -93,8 +122,12 @@ def update_song(track_id: UUID, song_data: TrackUpdate, db: Session = Depends(ge
 
 
 @router.delete("/{track_id}")
-def delete_song(track_id: UUID, db: Session = Depends(get_db)):
-    """Удалить трек."""
+def delete_song(
+    track_id: UUID,
+    _: UUID = Depends(get_admin_user_id),
+    db: Session = Depends(get_db),
+):
+    """Удалить трек (только админ)."""
     track = db.query(Track).filter(Track.id == track_id).first()
     if not track:
         raise HTTPException(

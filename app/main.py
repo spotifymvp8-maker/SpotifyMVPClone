@@ -8,12 +8,12 @@ from sqlalchemy import text
 from sqlalchemy.orm import Session
 
 from app.database import get_db
-from app.routes import auth, songs, albums, users, websocket, playlists, seed, search
+from app.routes import auth, songs, albums, users, websocket, playlists, seed, search, player, recommendations
 
 app = FastAPI(title="Spotify Clone API")
 
 # CORS: в production ограничить origins
-CORS_ORIGINS = os.getenv("CORS_ORIGINS", "http://localhost:3000,http://127.0.0.1:3000")
+CORS_ORIGINS = os.getenv("CORS_ORIGINS", "http://localhost:3000,http://localhost:3001,http://localhost:3002,http://127.0.0.1:3000,http://127.0.0.1:3001,http://127.0.0.1:3002")
 ALLOWED_ORIGINS = [o.strip() for o in CORS_ORIGINS.split(",")] if CORS_ORIGINS else ["*"]
 
 app.add_middleware(
@@ -32,6 +32,8 @@ app.include_router(users.router, prefix="/api/users", tags=["Users"])
 app.include_router(playlists.router, prefix="/api/playlists", tags=["Playlists"])
 app.include_router(seed.router, prefix="/api/seed", tags=["Seed"])
 app.include_router(search.router, prefix="/api/search", tags=["Search"])
+app.include_router(player.router, prefix="/api/player", tags=["Player"])
+app.include_router(recommendations.router, prefix="/api/recommendations", tags=["Recommendations"])
 app.include_router(websocket.router, tags=["WebSocket"])
 
 

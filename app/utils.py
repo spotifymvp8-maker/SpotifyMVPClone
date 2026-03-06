@@ -1,23 +1,35 @@
 """Утилиты для аутентификации."""
 
-import hashlib
 from datetime import datetime, timedelta
 from typing import Optional
-from uuid import UUID
 
 from jose import JWTError, jwt
+import bcrypt
 
-from app.config import SECRET_KEY, ALGORITHM, ACCESS_TOKEN_EXPIRE_MINUTES, REFRESH_TOKEN_EXPIRE_DAYS
+from app.config import (
+    SECRET_KEY,
+    ALGORITHM,
+    ACCESS_TOKEN_EXPIRE_MINUTES,
+    REFRESH_TOKEN_EXPIRE_DAYS,
+)
 
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
-    """Проверка пароля."""
-    return get_password_hash(plain_password) == hashed_password
+    """Проверка пароля через bcrypt. OAuth-пользователи не могут входить по паролю."""
+    if hashed_password.startswith("oauth:"):
+        return False
+    try:
+        return bcrypt.checkpw(
+            plain_password.encode("utf-8"),
+            hashed_password.encode("utf-8") if isinstance(hashed_password, str) else hashed_password,
+        )
+    except Exception:
+        return False
 
 
 def get_password_hash(password: str) -> str:
-    """Хеширование пароля с помощью SHA-256."""
-    return hashlib.sha256(password.encode()).hexdigest()
+    """Хеширование пароля с помощью bcrypt."""
+    return bcrypt.hashpw(password.encode("utf-8"), bcrypt.gensalt()).decode("utf-8")
 
 
 def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -> str:

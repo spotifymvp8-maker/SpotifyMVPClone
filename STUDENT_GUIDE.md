@@ -58,18 +58,18 @@ npm run dev
 
 ### 4. Открыть в браузере
 
-- **Приложение:** http://localhost:3000
+- **Приложение:** http://localhost:3000 (если порт занят — 3001, 3002)
 - **API документация:** http://localhost:8000/docs
 
-### 5. Наполнить тестовыми данными (опционально)
+### 5. Наполнить тестовыми данными
 
-После регистрации выполните:
-
-```
-POST http://localhost:8000/api/seed
+```powershell
+Invoke-RestMethod -Uri "http://localhost:8000/api/seed/seed" -Method POST
 ```
 
-Или через Swagger UI: http://localhost:8000/docs → Seed → POST /api/seed → Try it out → Execute
+Создаёт пользователя **test@example.com** / **test123**, альбомы и треки (аудио — SoundHelix).
+
+Или через Swagger UI: http://localhost:8000/docs → Seed → POST /api/seed/seed → Try it out → Execute
 
 ---
 
@@ -123,9 +123,13 @@ docker-compose up --build
 
 | Сервис | Порт | URL |
 |--------|------|-----|
-| Frontend | 3000 | http://localhost:3000 |
+| Frontend | 3000 (или 3001, 3002) | http://localhost:3000 |
 | Backend | 8000 | http://localhost:8000 |
 | PostgreSQL | 5432 | localhost:5432 |
+
+### Тестовый аккаунт
+
+После seed: **test@example.com** / **test123**
 
 ---
 
@@ -147,10 +151,12 @@ app/
     ├── songs.py      # /api/songs - треки
     ├── albums.py     # /api/albums - альбомы
     ├── playlists.py  # /api/playlists - плейлисты
-    ├── search.py     # /api/search - поиск
-    ├── users.py      # /api/users - пользователи
-    ├── seed.py       # /api/seed - тестовые данные
-    └── websocket.py  # WebSocket - чат, активность
+    ├── search.py         # /api/search - поиск
+    ├── users.py          # /api/users - пользователи
+    ├── seed.py           # /api/seed - тестовые данные
+    ├── player.py         # /api/player - история прослушиваний
+    ├── recommendations.py # /api/recommendations - рекомендации
+    └── websocket.py      # WebSocket - чат, активность
 ```
 
 ### Frontend (папка `frontend/src/`)
@@ -196,13 +202,15 @@ src/
 | GET | /api/playlists/me | Мои плейлисты (нужен Bearer token) |
 | POST | /api/seed | Наполнить БД тестовыми данными |
 
-### Пример: регистрация через curl
+### Пример: регистрация
 
 ```powershell
 curl -X POST http://localhost:8000/api/auth/register `
   -H "Content-Type: application/json" `
   -d '{"email":"test@mail.com","password":"123456","username":"testuser"}'
 ```
+
+**Вход:** только email + пароль (OAuth отключён). Тестовый аккаунт после seed: `test@example.com` / `test123`
 
 ### Пример: поиск
 
@@ -283,7 +291,8 @@ useEffect(() => {
 
 ### API-запросы
 
-Все запросы идут через `axiosInstance` из `lib/axios.ts`.  
+Все запросы идут через `axiosInstance` из `lib/axios.ts` (baseURL `/api`).  
+Vite проксирует `/api` на backend — CORS не требуется.  
 Bearer token добавляется автоматически из localStorage.
 
 ---
@@ -315,6 +324,11 @@ Bearer token добавляется автоматически из localStorage
 | `docker-compose up --build` | Запустить всё |
 | `docker-compose down` | Остановить контейнеры |
 
+### Остановка локального запуска
+
+- Backend/Frontend: Ctrl+C в терминале
+- PostgreSQL: `docker-compose down`
+
 ---
 
 ## Частые проблемы
@@ -341,15 +355,24 @@ pip install email-validator
 
 ### CORS ошибки
 
-Добавьте в `.env`:
+Запросы идут через Vite proxy (`/api` → backend), поэтому CORS обычно не нужен.  
+Если всё же возникает: добавьте порт в `.env`:
 
 ```
-CORS_ORIGINS=http://localhost:3000,http://127.0.0.1:3000
+CORS_ORIGINS=http://localhost:3000,http://localhost:3001,http://localhost:3002,http://127.0.0.1:3000
 ```
 
 ### Порт 3000 занят
 
-Frontend автоматически переключится на 3001. Проверьте вывод в консоли.
+Frontend автоматически переключится на 3001, 3002 и т.д. Проверьте вывод в консоли.
+
+### Музыка не воспроизводится
+
+Треки используют внешние URL (SoundHelix). Если в БД старые пути `/media/...`, обновите:
+
+```powershell
+Invoke-RestMethod -Uri "http://localhost:8000/api/seed/seed?force=true" -Method POST
+```
 
 ---
 
@@ -376,4 +399,4 @@ Frontend автоматически переключится на 3001. Пров
 
 ---
 
-*Гайд для студентов. Spotify Clone, 2026.*
+*Гайд для студентов. Spotify Clone. Обновлено 06.03.2026*

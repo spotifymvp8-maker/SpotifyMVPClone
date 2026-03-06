@@ -43,10 +43,11 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
 			localStorage.setItem(TOKEN_KEY, JSON.stringify({ access_token, refresh_token }));
 			localStorage.setItem(USER_KEY, JSON.stringify(user));
 		} catch (error: any) {
-			set({ 
-				error: error.response?.data?.detail || "Ошибка входа", 
-				isLoading: false 
-			});
+			const detail = error.response?.data?.detail;
+			const msg = Array.isArray(detail)
+				? detail.map((d: { msg?: string }) => d.msg).filter(Boolean).join("; ") || "Ошибка входа"
+				: (detail || "Ошибка входа");
+			set({ error: msg, isLoading: false });
 		}
 	},
 
@@ -66,10 +67,11 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
 			localStorage.setItem(TOKEN_KEY, JSON.stringify({ access_token, refresh_token }));
 			localStorage.setItem(USER_KEY, JSON.stringify(user));
 		} catch (error: any) {
-			set({ 
-				error: error.response?.data?.detail || "Ошибка регистрации", 
-				isLoading: false 
-			});
+			const detail = error.response?.data?.detail;
+			const msg = Array.isArray(detail)
+				? detail.map((d: { msg?: string }) => d.msg).filter(Boolean).join("; ") || "Ошибка регистрации"
+				: (detail || "Ошибка регистрации");
+			set({ error: msg, isLoading: false });
 		}
 	},
 

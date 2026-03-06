@@ -1,6 +1,15 @@
 import { create } from "zustand";
 import { Song } from "@/types";
+import { axiosInstance } from "@/lib/axios";
 import { useChatStore } from "./useChatStore";
+
+async function recordPlay(trackId: string) {
+	try {
+		await axiosInstance.post("/player/play", { track_id: trackId });
+	} catch {
+		// ignore (user may be logged out)
+	}
+}
 
 interface PlayerStore {
 	currentSong: Song | null;
@@ -46,6 +55,7 @@ export const usePlayerStore = create<PlayerStore>((set, get) => ({
 		if (songs.length === 0) return;
 
 		const song = songs[startIndex];
+		recordPlay(song.id);
 		const socket = useChatStore.getState().socket;
 		if (socket && socket.connected) {
 			socket.emit("update_activity", {
@@ -64,6 +74,7 @@ export const usePlayerStore = create<PlayerStore>((set, get) => ({
 	setCurrentSong: (song: Song | null) => {
 		if (!song) return;
 
+		recordPlay(song.id);
 		const socket = useChatStore.getState().socket;
 		if (socket && socket.connected) {
 			socket.emit("update_activity", {
@@ -84,6 +95,7 @@ export const usePlayerStore = create<PlayerStore>((set, get) => ({
 	togglePlay: () => {
 		const willStartPlaying = !get().isPlaying;
 		const currentSong = get().currentSong;
+		if (willStartPlaying && currentSong) recordPlay(currentSong.id);
 		const socket = useChatStore.getState().socket;
 		if (socket && socket.connected) {
 			socket.emit("update_activity", {
@@ -102,6 +114,7 @@ export const usePlayerStore = create<PlayerStore>((set, get) => ({
 
 		if (nextIndex < queue.length) {
 			const nextSong = queue[nextIndex];
+			recordPlay(nextSong.id);
 			const socket = useChatStore.getState().socket;
 			if (socket && socket.connected) {
 				socket.emit("update_activity", {
@@ -133,6 +146,7 @@ export const usePlayerStore = create<PlayerStore>((set, get) => ({
 
 		if (prevIndex >= 0) {
 			const prevSong = queue[prevIndex];
+			recordPlay(prevSong.id);
 			const socket = useChatStore.getState().socket;
 			if (socket && socket.connected) {
 				socket.emit("update_activity", {

@@ -203,7 +203,7 @@ auth_users (1) ──────< (1) user_profiles
 | ORM         | SQLAlchemy   | 2.0+    |
 | Миграции    | Alembic      | 1.13+   |
 | СУБД        | PostgreSQL   | 16      |
-| Auth        | python-jose  | 3.3+    |
+| Auth        | python-jose, bcrypt | 3.3+, 4.0+ |
 | WebSocket   | python-socketio | 5.x   |
 | ASGI-сервер | Uvicorn      | 0.27+   |
 | **Frontend** |
@@ -254,6 +254,8 @@ Spotify_copy/
 │       ├── users.py              # Пользователи
 │       ├── search.py             # Поиск
 │       ├── seed.py               # Наполнение тестовыми данными
+│       ├── player.py             # История прослушиваний
+│       ├── recommendations.py   # Рекомендации
 │       └── websocket.py          # WebSocket endpoint
 │
 ├── frontend/                     # Frontend приложение React
@@ -273,7 +275,6 @@ Spotify_copy/
 │   │   │   ├── chat/             # Чат
 │   │   │   ├── admin/            # Админ панель
 │   │   │   ├── login/            # Вход/регистрация
-│   │   │   ├── auth-callback/    # OAuth callback
 │   │   │   └── 404/              # Страница не найдена
 │   │   ├── stores/               # Zustand stores
 │   │   ├── providers/            # AuthProvider
@@ -284,7 +285,7 @@ Spotify_copy/
 │   ├── public/                   # Статические файлы
 │   │   ├── favicon.svg           # Иконка Spotify
 │   │   ├── spotify.png
-│   │   └── media/                # Песни и обложки
+│   │   └── media/                # (опционально) локальные медиа; по умолчанию — внешние URL
 │   ├── package.json
 │   └── vite.config.ts
 │
@@ -405,21 +406,41 @@ python -m alembic revision --autogenerate -m "описание"
 
 | Метод | Путь | Описание |
 |-------|------|----------|
-| POST | `/register` | Регистрация |
-| POST | `/login` | Вход |
+| GET | `/health` | Проверка работоспособности auth-сервиса |
+| POST | `/register` | Регистрация (email, username, password) |
+| POST | `/login` | Вход (email, password) |
 | POST | `/logout` | Выход |
 | POST | `/refresh` | Обновление токена |
 | GET | `/me` | Текущий пользователь (Bearer) |
 
-### Songs (`/api/songs`)
+### Users (`/api/users`) — User Service
 
 | Метод | Путь | Описание |
 |-------|------|----------|
-| GET | `/` | Все треки |
+| GET | `/health` | Health check User Service |
+| GET | `/me` | Профиль текущего пользователя (создаётся при первом обращении) |
+| PUT | `/me` | Обновить профиль (username, avatar_url, bio) |
+| GET | `/` | Все пользователи (только публичные данные) |
+| GET | `/{id}` | Профиль по ID |
+| GET | `/messages/{user_id}` | Сообщения с пользователем |
+
+**Профиль:** `id`, `username`, `avatar_url`, `bio` (без email). JWT обязателен.
+
+### Songs (`/api/songs`) — Track Service
+
+| Метод | Путь | Описание |
+|-------|------|----------|
+| GET | `/health` | Health check Track Service |
+| GET | `/` | Все треки (пагинация: `?limit=50&offset=0`) |
 | GET | `/featured` | Избранные |
 | GET | `/made-for-you` | Создано для вас |
 | GET | `/trending` | Трендовые |
 | GET | `/{id}` | Трек по ID |
+| POST | `/` | Создать трек (только админ, Bearer) |
+| PUT | `/{id}` | Обновить трек (только админ, Bearer) |
+| DELETE | `/{id}` | Удалить трек (только админ, Bearer) |
+
+**Пагинация:** `limit` (1–100, по умолчанию 50), `offset` (по умолчанию 0). Админ: email в `ADMIN_EMAILS`.
 
 ### Albums (`/api/albums`)
 
@@ -453,11 +474,34 @@ python -m alembic revision --autogenerate -m "описание"
 }
 ```
 
+### Player (`/api/player`) — Player / History Service
+
+| Метод | Путь | Описание |
+|-------|------|----------|
+| GET | `/health` | Health check Player Service |
+| POST | `/play` | Записать прослушивание трека (body: `{track_id}`) |
+| GET | `/history` | История прослушиваний текущего пользователя |
+
+JWT обязателен. При каждом play создаётся запись в `listening_history`.
+
+### Recommendations (`/api/recommendations`) — Recommendation Service
+
+| Метод | Путь | Описание |
+|-------|------|----------|
+| GET | `/health` | Health check Recommendation Service |
+| GET | `/` | Персонализированные рекомендации (rule-based MVP) |
+
+**Логика (rule-based):** история прослушиваний → артисты; плейлисты пользователя; новые треки. Кэш: `RECOMMENDATION_CACHE_TTL` сек.
+
 ### Seed (`/api/seed`)
 
 | Метод | Путь | Описание |
 |-------|------|----------|
-| POST | `/` | Наполнить БД тестовыми данными |
+| POST | `/seed` | Наполнить БД тестовыми данными |
+| POST | `/seed?force=true` | Обновить URL треков (file_url, image_url) без пересоздания БД |
+
+**Тестовый пользователь:** `test@example.com` / `test123`  
+**Треки:** используют внешние URL (SoundHelix), локальные файлы не требуются.
 
 ---
 
@@ -495,6 +539,17 @@ const socket = io("ws://localhost:8000", {
 ---
 
 ## Аутентификация
+
+### Способ входа
+
+- **Email + пароль** — регистрация и вход (OAuth отключён)
+
+### Тестовый аккаунт
+
+- **Email:** `test@example.com`
+- **Пароль:** `test123`
+
+(Создаётся при первом вызове `POST /api/seed/seed`)
 
 ### JWT Токены
 
@@ -573,15 +628,17 @@ const socket = io("ws://localhost:8000", {
 | Переменная | Описание | Пример |
 |------------|----------|--------|
 | DATABASE_URL | Подключение к PostgreSQL | postgresql://postgres:postgres@localhost:5432/spotify_clone |
-| CORS_ORIGINS | Разрешённые origins (через запятую) | http://localhost:3000,http://127.0.0.1:3000 |
+| CORS_ORIGINS | Разрешённые origins (через запятую) | http://localhost:3000,http://localhost:3001,http://localhost:3002,... |
+| ADMIN_EMAILS | Email админов через запятую (создание/редактирование треков) | admin@example.com |
+| RECOMMENDATION_CACHE_TTL | TTL кэша рекомендаций в секундах (0 = без кэша) | 300 |
 | SECRET_KEY | Секретный ключ для JWT | your-secret-key |
 | ACCESS_TOKEN_EXPIRE_MINUTES | Время жизни access токена | 30 |
 | REFRESH_TOKEN_EXPIRE_DAYS | Время жизни refresh токена | 7 |
 
-### Frontend (vite.config.ts)
+### Frontend (vite.config.ts, axios)
 
 - **Proxy** — `/api` → `http://localhost:8000`, `/ws` → `ws://localhost:8000`
-- В development режиме API запросы идут через proxy
+- **Axios baseURL** — `/api` (запросы идут через Vite proxy, CORS не требуется)
 
 ---
 
@@ -632,14 +689,39 @@ npm install
 npm run dev
 ```
 
-Frontend: http://localhost:3000
+Frontend: http://localhost:3000 (если порт занят — 3001, 3002 и т.д.)
 
-### Шаг 3: Проверка
+### Вариант: полностью в Docker
 
-1. Откройте http://localhost:3000
-2. Зарегистрируйтесь
-3. (Опционально) POST http://localhost:8000/api/seed — наполнить тестовыми данными
-4. Начните воспроизведение музыки
+```powershell
+docker-compose up -d
+```
+
+Backend: http://localhost:8000, Frontend: http://localhost:3000
+
+### Шаг 3: Seed (тестовые данные)
+
+```powershell
+Invoke-RestMethod -Uri "http://localhost:8000/api/seed/seed" -Method POST
+```
+
+Создаёт пользователя `test@example.com` / `test123`, альбомы и треки (URL — SoundHelix).
+
+Обновить URL треков без пересоздания БД:
+```powershell
+Invoke-RestMethod -Uri "http://localhost:8000/api/seed/seed?force=true" -Method POST
+```
+
+### Шаг 4: Проверка
+
+1. Откройте http://localhost:3000 (или порт, который выберет Vite)
+2. Войдите: `test@example.com` / `test123` или зарегистрируйтесь
+3. Начните воспроизведение музыки
+
+### Остановка
+
+- **Локально:** Ctrl+C в терминалах backend и frontend; `docker-compose down` для PostgreSQL
+- **Docker:** `docker-compose down`
 
 ### API Документация
 
@@ -669,4 +751,4 @@ Frontend: http://localhost:3000
 
 ---
 
-*Документация актуальна на 06.03.2026*
+*Документация обновлена 06.03.2026*

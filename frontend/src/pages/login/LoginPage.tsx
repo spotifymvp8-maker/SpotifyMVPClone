@@ -7,7 +7,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 const LoginPage = () => {
 	const navigate = useNavigate();
-	const { login, register, isLoading } = useAuthStore();
+	const { login, register, isLoading, error, reset } = useAuthStore();
 
 	const [loginForm, setLoginForm] = useState({ email: "", password: "" });
 	const [registerForm, setRegisterForm] = useState({
@@ -18,14 +18,16 @@ const LoginPage = () => {
 
 	const handleLogin = async (e: React.FormEvent) => {
 		e.preventDefault();
+		reset();
 		await login(loginForm);
-		navigate("/");
+		if (useAuthStore.getState().isAuthenticated) navigate("/");
 	};
 
 	const handleRegister = async (e: React.FormEvent) => {
 		e.preventDefault();
+		reset();
 		await register(registerForm);
-		navigate("/");
+		if (useAuthStore.getState().isAuthenticated) navigate("/");
 	};
 
 	return (
@@ -59,6 +61,11 @@ const LoginPage = () => {
 
 						<TabsContent value="login">
 							<form onSubmit={handleLogin} className="space-y-4">
+								{error && (
+									<div className="p-3 rounded-lg bg-red-500/20 border border-red-500/50 text-red-400 text-sm">
+										{error}
+									</div>
+								)}
 								<Input
 									type="email"
 									placeholder="Email address"
@@ -87,6 +94,11 @@ const LoginPage = () => {
 
 						<TabsContent value="register">
 							<form onSubmit={handleRegister} className="space-y-4">
+								{error && (
+									<div className="p-3 rounded-lg bg-red-500/20 border border-red-500/50 text-red-400 text-sm">
+										{error}
+									</div>
+								)}
 								<Input
 									type="text"
 									placeholder="Username"
