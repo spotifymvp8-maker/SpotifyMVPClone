@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import { Song, Album } from "@/types";
+import { Song, Album, Playlist } from "@/types";
 import { axiosInstance } from "@/lib/axios";
 
 function extractError(err: unknown): string {
@@ -10,8 +10,8 @@ function extractError(err: unknown): string {
 	if (Array.isArray(detail) && detail[0] && typeof detail[0] === "object" && "msg" in detail[0]) {
 		return String((detail[0] as { msg?: string }).msg) || "Ошибка валидации";
 	}
-	if (r.response?.status === 403) return "Требуются права администратора. Войдите как test@example.com / test123";
-	if (r.response?.status === 401) return "Сессия истекла. Войдите снова.";
+	if (r.response?.status === 403) return "Требуются права администратора";
+	if (r.response?.status === 401) return "Сессия истекла";
 	return "Ошибка запроса";
 }
 
@@ -55,6 +55,7 @@ interface MusicStore {
 	allSongs: Song[];
 	isLoading: boolean;
 	error: string | null;
+
 	clearError: () => void;
 	setError: (msg: string) => void;
 
@@ -74,6 +75,9 @@ interface MusicStore {
 	deleteSong: (id: string) => Promise<boolean>;
 	uploadImage: (file: File) => Promise<string | null>;
 	uploadAudio: (file: File) => Promise<string | null>;
+
+	fetchMyPlaylists: () => Promise<Playlist[]>;
+	addTrackToPlaylist: (playlistId: string, trackId: string) => Promise<void>;
 }
 
 export const useMusicStore = create<MusicStore>((set, get) => ({
@@ -84,67 +88,68 @@ export const useMusicStore = create<MusicStore>((set, get) => ({
 	allSongs: [],
 	isLoading: false,
 	error: null,
+
 	clearError: () => set({ error: null }),
 	setError: (msg: string) => set({ error: msg }),
 
 	fetchFeaturedSongs: async () => {
 		set({ isLoading: true, error: null });
 		try {
-			const response = await axiosInstance.get("/songs/featured");
-			set({ featuredSongs: response.data, isLoading: false });
-		} catch (error: any) {
-			set({ error: extractError(error), isLoading: false });
+			const res = await axiosInstance.get("/songs/featured");
+			set({ featuredSongs: res.data, isLoading: false });
+		} catch (e) {
+			set({ error: extractError(e), isLoading: false });
 		}
 	},
 
 	fetchMadeForYouSongs: async () => {
 		set({ isLoading: true, error: null });
 		try {
-			const response = await axiosInstance.get("/songs/made-for-you");
-			set({ madeForYouSongs: response.data, isLoading: false });
-		} catch (error: any) {
-			set({ error: extractError(error), isLoading: false });
+			const res = await axiosInstance.get("/songs/made-for-you");
+			set({ madeForYouSongs: res.data, isLoading: false });
+		} catch (e) {
+			set({ error: extractError(e), isLoading: false });
 		}
 	},
 
 	fetchTrendingSongs: async () => {
 		set({ isLoading: true, error: null });
 		try {
-			const response = await axiosInstance.get("/songs/trending");
-			set({ trendingSongs: response.data, isLoading: false });
-		} catch (error: any) {
-			set({ error: extractError(error), isLoading: false });
+			const res = await axiosInstance.get("/songs/trending");
+			set({ trendingSongs: res.data, isLoading: false });
+		} catch (e) {
+			set({ error: extractError(e), isLoading: false });
 		}
 	},
 
 	fetchAlbums: async () => {
 		set({ isLoading: true, error: null });
 		try {
-			const response = await axiosInstance.get("/albums");
-			set({ albums: response.data, isLoading: false });
-		} catch (error: any) {
-			set({ error: extractError(error), isLoading: false });
+			const res = await axiosInstance.get("/albums");
+			set({ albums: res.data, isLoading: false });
+		} catch (e) {
+			set({ error: extractError(e), isLoading: false });
 		}
 	},
 
 	fetchAllSongs: async () => {
 		set({ isLoading: true, error: null });
 		try {
-			const response = await axiosInstance.get("/songs/?limit=100");
-			set({ allSongs: response.data, isLoading: false });
-		} catch (error: any) {
-			set({ error: extractError(error), isLoading: false });
+			const res = await axiosInstance.get("/songs/?limit=100");
+			set({ allSongs: res.data, isLoading: false });
+		} catch (e) {
+			set({ error: extractError(e), isLoading: false });
 		}
 	},
 
 	fetchAlbumById: async (id: string) => {
 		set({ isLoading: true, error: null });
 		try {
-			const response = await axiosInstance.get(`/albums/${id}`);
+			const res = await axiosInstance.get(`/albums/${id}`);
 			set({ isLoading: false });
-			return response.data;
-		} catch (error: any) {
-			set({ error: extractError(error), isLoading: false });
+			return res.data;
+		} catch (e) {
+			set({ error: extractError(e), isLoading: false });
 			return null;
 		}
 	},
@@ -152,131 +157,119 @@ export const useMusicStore = create<MusicStore>((set, get) => ({
 	search: async (query: string) => {
 		set({ isLoading: true, error: null });
 		try {
-		const response = await axiosInstance.get("/search/", {
-			params: { q: query },
-		});
+			const res = await axiosInstance.get("/search/", { params: { q: query } });
 			set({ isLoading: false });
-			return response.data;
-		} catch (error: any) {
-			set({ error: extractError(error), isLoading: false });
+			return res.data;
+		} catch (e) {
+			set({ error: extractError(e), isLoading: false });
 			return { tracks: [], albums: [], artists: [] };
 		}
 	},
 
-	createAlbum: async (data: CreateAlbumData) => {
-		set({ error: null });
+	createAlbum: async (data) => {
 		try {
-			const response = await axiosInstance.post("/albums", data);
-			const album = response.data;
-			set((state) => ({ albums: [album, ...state.albums] }));
-			return album;
-		} catch (error: any) {
-			set({ error: extractError(error) });
+			const res = await axiosInstance.post("/albums", data);
+			set((s) => ({ albums: [res.data, ...s.albums] }));
+			return res.data;
+		} catch (e) {
+			set({ error: extractError(e) });
 			return null;
 		}
 	},
 
-	createSong: async (data: CreateSongData) => {
-		set({ error: null });
+	createSong: async (data) => {
 		try {
-			const payload = {
-				...data,
-				album_id: data.album_id || null,
-				image_url: data.image_url || null,
-			};
-			const response = await axiosInstance.post("/songs/", payload);
-			return response.data;
-		} catch (err: unknown) {
-			set({ error: extractError(err) });
+			const res = await axiosInstance.post("/songs/", data);
+			return res.data;
+		} catch (e) {
+			set({ error: extractError(e) });
 			return null;
 		}
 	},
 
-	updateAlbum: async (id: string, data: UpdateAlbumData) => {
-		set({ error: null });
+	updateAlbum: async (id, data) => {
 		try {
-			const response = await axiosInstance.put(`/albums/${id}`, data);
-			const album = response.data;
-			set((state) => ({
-				albums: state.albums.map((a) => (a.id === id ? album : a)),
-			}));
-			return album;
-		} catch (error: any) {
-			set({ error: extractError(error) });
+			const res = await axiosInstance.put(`/albums/${id}`, data);
+			set((s) => ({ albums: s.albums.map(a => a.id === id ? res.data : a) }));
+			return res.data;
+		} catch (e) {
+			set({ error: extractError(e) });
 			return null;
 		}
 	},
 
-	deleteAlbum: async (id: string) => {
-		set({ error: null });
+	deleteAlbum: async (id) => {
 		try {
 			await axiosInstance.delete(`/albums/${id}`);
-			set((state) => ({ albums: state.albums.filter((a) => a.id !== id) }));
+			set((s) => ({ albums: s.albums.filter(a => a.id !== id) }));
 			return true;
-		} catch (error: any) {
-			set({ error: extractError(error) });
+		} catch (e) {
+			set({ error: extractError(e) });
 			return false;
 		}
 	},
 
-	updateSong: async (id: string, data: UpdateSongData) => {
-		set({ error: null });
+	updateSong: async (id, data) => {
 		try {
-			const response = await axiosInstance.put(`/songs/${id}`, data);
-			const song = response.data;
-			set((state) => ({
-				albums: state.albums.map((a) => ({
-					...a,
-					songs: a.songs?.map((s) => (s.id === id ? song : s)) ?? [],
-				})),
-			}));
-			return response.data;
-		} catch (error: any) {
-			set({ error: extractError(error) });
+			const res = await axiosInstance.put(`/songs/${id}`, data);
+			return res.data;
+		} catch (e) {
+			set({ error: extractError(e) });
 			return null;
 		}
 	},
 
-	deleteSong: async (id: string) => {
-		set({ error: null });
+	deleteSong: async (id) => {
 		try {
 			await axiosInstance.delete(`/songs/${id}`);
-			set((state) => ({
-				albums: state.albums.map((a) => ({
-					...a,
-					songs: a.songs?.filter((s) => s.id !== id) ?? [],
-				})),
-			}));
 			return true;
-		} catch (error: any) {
-			set({ error: extractError(error) });
+		} catch (e) {
+			set({ error: extractError(e) });
 			return false;
 		}
 	},
 
-	uploadImage: async (file: File) => {
-		const formData = new FormData();
-		formData.append("file", file, file.name);
+	uploadImage: async (file) => {
+		const fd = new FormData();
+		fd.append("file", file);
 		try {
-			const response = await axiosInstance.post("/upload/image", formData);
-			const url = response.data?.url;
-			return typeof url === "string" ? url : null;
-		} catch (err: unknown) {
-			set({ error: extractError(err) });
+			const res = await axiosInstance.post("/upload/image", fd);
+			return res.data?.url ?? null;
+		} catch (e) {
+			set({ error: extractError(e) });
 			return null;
 		}
 	},
 
-	uploadAudio: async (file: File) => {
-		const formData = new FormData();
-		formData.append("file", file, file.name);
+	uploadAudio: async (file) => {
+		const fd = new FormData();
+		fd.append("file", file);
 		try {
-			const response = await axiosInstance.post("/upload/audio", formData);
-			const url = response.data?.url;
-			return typeof url === "string" ? url : null;
-		} catch (err: unknown) {
-			set({ error: extractError(err) });
+			const res = await axiosInstance.post("/upload/audio", fd);
+			return res.data?.url ?? null;
+		} catch (e) {
+			set({ error: extractError(e) });
 			return null;
+		}
+	},
+
+	fetchMyPlaylists: async () => {
+		set({ isLoading: true, error: null });
+		try {
+			const res = await axiosInstance.get("/api/playlists/me");
+			set({ isLoading: false });
+			return res.data;
+		} catch (e) {
+			set({ error: extractError(e), isLoading: false });
+			return [];
+		}
+	},
+
+	addTrackToPlaylist: async (playlistId, trackId) => {
+		try {
+			await axiosInstance.post(`/api/playlists/${playlistId}/tracks`, { track_id: trackId });
+		} catch (e) {
+			set({ error: extractError(e) });
 		}
 	},
 }));
