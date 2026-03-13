@@ -5,9 +5,11 @@ import { usePlayerStore } from "@/stores/usePlayerStore";
 import { useMusicStore } from "@/stores/useMusicStore";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Button } from "@/components/ui/button";
-import { Play, Plus } from "lucide-react";
+import { Plus } from "lucide-react";
 import { Playlist, Album } from "@/types";
 import { axiosInstance } from "@/lib/axios";
+import PlaylistCard from "@/components/ui/PlaylistCard";
+import { Play, Pencil, Trash2 } from "lucide-react";
 
 const LibraryPage = () => {
   const navigate = useNavigate();
@@ -34,20 +36,21 @@ const LibraryPage = () => {
   }, []);
 
   useEffect(() => {
-    fetchAlbums();
+    const loadAlbums = async () => {
+      await fetchAlbums();
+    };
+    loadAlbums();
   }, [fetchAlbums]);
 
   const handlePlayPlaylist = (playlist: Playlist) => {
     if (playlist.tracks?.length) playAlbum(playlist.tracks, 0);
   };
 
-  const handlePlayAlbum = (album: Album) => {
-    playAlbum(album.songs, 0);
+  const handleDeletePlaylist = (id: string) => {
+    setPlaylists((prev) => prev.filter((p) => p.id !== id));
   };
 
-  const handleCreatePlaylist = () => {
-    navigate("/playlists/new");
-  };
+  const handleCreatePlaylist = () => navigate("/playlists/new");
 
   return (
     <main className="flex-1 flex flex-col min-h-0 bg-spotify-charcoal">
@@ -98,27 +101,12 @@ const LibraryPage = () => {
               </div>
 
               {playlists.map((playlist) => (
-                <div
+                <PlaylistCard
                   key={playlist.id}
-                  className="group p-4 rounded-lg bg-white/5 hover:bg-white/10 transition-colors cursor-pointer"
-                  onClick={() => handlePlayPlaylist(playlist)}
-                >
-                  <div className="relative mb-3">
-                    <div className="aspect-square rounded-lg bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center">
-                      <Play className="h-12 w-12 text-white/80" />
-                    </div>
-                    <Button
-                      size="icon"
-                      className="absolute bottom-2 right-2 h-12 w-12 rounded-full bg-spotify-green hover:bg-spotify-green-hover opacity-0 group-hover:opacity-100 shadow-xl"
-                    >
-                      <Play className="h-5 w-5 text-black ml-0.5" fill="currentColor" />
-                    </Button>
-                  </div>
-                  <p className="font-medium text-white truncate">{playlist.title}</p>
-                  <p className="text-sm text-spotify-text-muted">
-                    Playlist • {playlist.tracks?.length || 0} songs
-                  </p>
-                </div>
+                  playlist={playlist}
+                  onPlay={handlePlayPlaylist}
+                  onDeleted={handleDeletePlaylist}
+                />
               ))}
             </div>
           ) : (
@@ -127,7 +115,7 @@ const LibraryPage = () => {
                 <div
                   key={album.id}
                   className="group p-4 rounded-lg bg-white/5 hover:bg-white/10 transition-colors cursor-pointer"
-                  onClick={() => handlePlayAlbum(album)}
+                  onClick={() => playAlbum(album.songs, 0)}
                 >
                   <div className="relative mb-3">
                     <img
@@ -147,18 +135,6 @@ const LibraryPage = () => {
                 </div>
               ))}
             </div>
-          )}
-
-          {activeTab === "playlists" && playlists.length === 0 && !isLoading && (
-            <p className="text-spotify-text-muted py-8">
-              You don't have any playlists yet. Create one to get started.
-            </p>
-          )}
-
-          {activeTab === "albums" && albums.length === 0 && !isLoading && (
-            <p className="text-spotify-text-muted py-8">
-              No albums in your library. Browse and add some!
-            </p>
           )}
         </div>
       </ScrollArea>
