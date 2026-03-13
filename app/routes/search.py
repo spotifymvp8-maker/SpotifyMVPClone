@@ -12,6 +12,7 @@ from app.schemas import TrackResponse, AlbumResponse, ArtistSearchResult
 router = APIRouter()
 
 
+@router.get("")
 @router.get("/")
 def search(
     q: str = Query(..., min_length=1),
@@ -22,13 +23,14 @@ def search(
     if not query:
         return {"tracks": [], "albums": [], "artists": []}
 
-    # Поиск треков (title, artist)
+    # Поиск треков (title, artist, album_name)
     tracks = (
         db.query(Track)
         .filter(
             or_(
                 Track.title.ilike(f"%{query}%"),
                 Track.artist.ilike(f"%{query}%"),
+                Track.album_name.ilike(f"%{query}%"),
             )
         )
         .limit(20)

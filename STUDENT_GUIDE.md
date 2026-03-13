@@ -125,15 +125,17 @@ Invoke-RestMethod -Uri "http://localhost:8000/api/seed/seed" -Method POST
 
 | Страница | Путь | Что здесь |
 |---------|------|----------|
-| Главная | `/` | Три секции треков: Featured, Made For You, Trending |
-| Поиск | `/search` | Поиск треков, альбомов и артистов |
-| Your Library | `/library` | Ваши плейлисты |
-| Альбом | `/albums/:id` | Треки конкретного альбома |
+| Главная | `/` | Три секции треков: Featured, Made For You, Trending. Кнопки ♥ на карточках. |
+| Поиск | `/search` | Поиск треков/альбомов/артистов. На начальном экране — все альбомы. |
+| Your Library | `/library` | Сохранённые альбомы и любимые треки |
+| Альбом | `/albums/:id` | Треки конкретного альбома. Кнопка ♥ для альбома и каждого трека. |
 | **Админ-панель** | `/admin` | Управление контентом |
 
 **Плеер** всегда внизу — play/pause, перемотка, громкость.
 
 **Панель «Исполнитель»** — нажмите на имя артиста в плеере или на треке.
+
+**Кнопка ♥** — появляется при наведении на трек/альбом. Сохраняет в Your Library (данные хранятся в браузере).
 
 ---
 
@@ -273,6 +275,31 @@ const MyComponent = () => {
 | `usePlayerStore` | Текущий трек, очередь, громкость, прогресс |
 | `useMusicStore` | Альбомы, треки, результаты поиска, ошибки |
 | `useArtistStore` | Выбранный артист, открыта ли панель |
+| `useLibraryStore` | Сохранённые альбомы + любимые треки (persist → localStorage) |
+
+### useLibraryStore — работа с библиотекой
+
+```typescript
+import { useLibraryStore } from "@/stores/useLibraryStore";
+
+const { saveAlbum, removeAlbum, isAlbumSaved, likeSong, unlikeSong, isSongLiked } = useLibraryStore();
+
+// Сохранить альбом в библиотеку
+saveAlbum(album);
+
+// Проверить, сохранён ли альбом
+if (isAlbumSaved(album.id)) { ... }
+
+// Убрать из библиотеки
+removeAlbum(album.id);
+
+// Аналогично для треков
+likeSong(song);
+isSongLiked(song.id);
+unlikeSong(song.id);
+```
+
+Данные сохраняются в `localStorage` под ключом `spotify-library` — не теряются при обновлении страницы.
 
 ### Axios — HTTP-запросы
 
@@ -659,6 +686,9 @@ CORS_ORIGINS=http://localhost:3000,http://localhost:3001,http://127.0.0.1:3000
 11. Зачем axios interceptor перехватывает ответы 401?
 12. Почему компоненты нельзя определять внутри других функциональных компонентов? (Подсказка: React reconciliation)
 13. Что такое `<Outlet />` в React Router?
+14. Что такое `zustand/middleware` `persist`? Чем хранение в localStorage отличается от хранения в БД?
+15. Зачем в SearchPage используется debounce? Что произойдёт, если убрать задержку 400 мс?
+16. Почему поиск нельзя вызывать через общий `isLoading` из store, когда другие компоненты тоже делают запросы?
 
 **По деплою:**
 14. Зачем Nginx, если backend уже слушает на порту 8000?
@@ -680,4 +710,4 @@ CORS_ORIGINS=http://localhost:3000,http://localhost:3001,http://127.0.0.1:3000
 
 ---
 
-*Гайд для студентов. Spotify Clone. Обновлено 13.03.2026*
+*Гайд для студентов. Spotify Clone. Обновлено 13.03.2026 (сессия 2)*

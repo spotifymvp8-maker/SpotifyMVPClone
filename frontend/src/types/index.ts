@@ -3,6 +3,7 @@ export interface Song {
 	title: string;
 	artist: string;
 	album_id: string | null;
+	album_name?: string | null;
 	image_url: string;
 	file_url: string;
 	duration: number;

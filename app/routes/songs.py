@@ -82,7 +82,7 @@ def create_song(
     db: Session = Depends(get_db),
 ):
     """Создать новый трек (только админ)."""
-    # При наличии album_id — подставляем album_name из альбома
+    # При наличии album_id — подставляем album_name и image_url из альбома
     data = song_data.model_dump()
     album_name = ""
     if song_data.album_id:
@@ -93,6 +93,9 @@ def create_song(
                 detail="Album not found"
             )
         album_name = album.title
+        # Наследуем обложку альбома, если у трека нет своей
+        if not data.get("image_url"):
+            data["image_url"] = album.image_url
     data["album_name"] = album_name
     track = Track(**data)
     db.add(track)
@@ -121,6 +124,9 @@ def update_song(
         album = db.query(Album).filter(Album.id == update_data["album_id"]).first()
         if album:
             update_data["album_name"] = album.title
+            # Наследуем обложку альбома, если у трека нет своей
+            if not update_data.get("image_url") and not track.image_url:
+                update_data["image_url"] = album.image_url
     elif "album_id" in update_data and update_data["album_id"] is None:
         update_data["album_name"] = ""
     for field, value in update_data.items():

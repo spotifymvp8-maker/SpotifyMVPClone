@@ -52,6 +52,7 @@ interface MusicStore {
 	madeForYouSongs: Song[];
 	trendingSongs: Song[];
 	albums: Album[];
+	allSongs: Song[];
 	isLoading: boolean;
 	error: string | null;
 	clearError: () => void;
@@ -61,6 +62,7 @@ interface MusicStore {
 	fetchMadeForYouSongs: () => Promise<void>;
 	fetchTrendingSongs: () => Promise<void>;
 	fetchAlbums: () => Promise<void>;
+	fetchAllSongs: () => Promise<void>;
 	fetchAlbumById: (id: string) => Promise<Album | null>;
 	search: (query: string) => Promise<{ tracks: Song[]; albums: Album[]; artists: { name: string }[] }>;
 
@@ -79,6 +81,7 @@ export const useMusicStore = create<MusicStore>((set, get) => ({
 	madeForYouSongs: [],
 	trendingSongs: [],
 	albums: [],
+	allSongs: [],
 	isLoading: false,
 	error: null,
 	clearError: () => set({ error: null }),
@@ -124,6 +127,16 @@ export const useMusicStore = create<MusicStore>((set, get) => ({
 		}
 	},
 
+	fetchAllSongs: async () => {
+		set({ isLoading: true, error: null });
+		try {
+			const response = await axiosInstance.get("/songs/?limit=100");
+			set({ allSongs: response.data, isLoading: false });
+		} catch (error: any) {
+			set({ error: extractError(error), isLoading: false });
+		}
+	},
+
 	fetchAlbumById: async (id: string) => {
 		set({ isLoading: true, error: null });
 		try {
@@ -139,9 +152,9 @@ export const useMusicStore = create<MusicStore>((set, get) => ({
 	search: async (query: string) => {
 		set({ isLoading: true, error: null });
 		try {
-			const response = await axiosInstance.get("/search", {
-				params: { q: query },
-			});
+		const response = await axiosInstance.get("/search/", {
+			params: { q: query },
+		});
 			set({ isLoading: false });
 			return response.data;
 		} catch (error: any) {

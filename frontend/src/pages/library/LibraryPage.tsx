@@ -1,49 +1,22 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
+import { Link } from "react-router-dom";
 import Topbar from "@/components/Topbar";
 import { usePlayerStore } from "@/stores/usePlayerStore";
-import { useMusicStore } from "@/stores/useMusicStore";
+import { useLibraryStore } from "@/stores/useLibraryStore";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Button } from "@/components/ui/button";
-import { Play, Plus } from "lucide-react";
-import { Playlist, Album } from "@/types";
-import { axiosInstance } from "@/lib/axios";
+import { Heart, Play, BookOpen, Disc3 } from "lucide-react";
 
 const LibraryPage = () => {
-	const [playlists, setPlaylists] = useState<Playlist[]>([]);
-	const [activeTab, setActiveTab] = useState<"playlists" | "albums">("playlists");
-	const [isLoading, setIsLoading] = useState(true);
+	const [activeTab, setActiveTab] = useState<"albums" | "songs">("albums");
 
-	const { playAlbum } = usePlayerStore();
-	const { fetchAlbums, albums } = useMusicStore();
+	const { playAlbum, setCurrentSong } = usePlayerStore();
+	const { savedAlbums, likedSongs, removeAlbum, unlikeSong } = useLibraryStore();
 
-	useEffect(() => {
-		const loadPlaylists = async () => {
-			setIsLoading(true);
-			try {
-				const res = await axiosInstance.get<Playlist[]>("/playlists/me");
-				setPlaylists(res.data);
-			} catch (error) {
-				console.error("Library load error:", error);
-			} finally {
-				setIsLoading(false);
-			}
-		};
-
-		loadPlaylists();
-	}, []);
-
-	useEffect(() => {
-		fetchAlbums();
-	}, [fetchAlbums]);
-
-	const handlePlayPlaylist = (playlist: Playlist) => {
-		if (playlist.tracks?.length) {
-			playAlbum(playlist.tracks, 0);
-		}
-	};
-
-	const handlePlayAlbum = (album: Album) => {
-		playAlbum(album.songs, 0);
+	const handlePlayAlbum = (e: React.MouseEvent, songs: typeof savedAlbums[0]["songs"]) => {
+		e.preventDefault();
+		e.stopPropagation();
+		if (songs?.length) playAlbum(songs, 0);
 	};
 
 	return (
@@ -58,17 +31,6 @@ const LibraryPage = () => {
 
 					<div className="flex flex-wrap gap-2">
 						<button
-							onClick={() => setActiveTab("playlists")}
-							className={`rounded-full px-4 py-2 text-sm font-medium transition-colors sm:px-5 md:px-6 ${
-								activeTab === "playlists"
-									? "bg-white text-black"
-									: "bg-white/10 text-white hover:bg-white/20"
-							}`}
-						>
-							Playlists
-						</button>
-
-						<button
 							onClick={() => setActiveTab("albums")}
 							className={`rounded-full px-4 py-2 text-sm font-medium transition-colors sm:px-5 md:px-6 ${
 								activeTab === "albums"
@@ -78,102 +40,153 @@ const LibraryPage = () => {
 						>
 							Albums
 						</button>
+
+						<button
+							onClick={() => setActiveTab("songs")}
+							className={`rounded-full px-4 py-2 text-sm font-medium transition-colors sm:px-5 md:px-6 ${
+								activeTab === "songs"
+									? "bg-white text-black"
+									: "bg-white/10 text-white hover:bg-white/20"
+							}`}
+						>
+							Liked Songs
+						</button>
 					</div>
 				</div>
 			</div>
 
 			<ScrollArea className="flex-1 scrollbar-spotify">
 				<div className="relative z-10 -mt-6 px-4 pb-28 pt-0 sm:-mt-7 sm:px-5 md:-mt-8 md:px-6 md:pb-32">
-					{isLoading ? (
-						<p className="text-sm text-spotify-text-muted">Loading...</p>
-					) : activeTab === "playlists" ? (
-						<div className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4 md:grid-cols-4 lg:grid-cols-5">
-							{/* Create playlist card */}
-							<div className="relative flex min-h-[170px] items-center justify-center rounded-lg border-2 border-dashed border-white/20 bg-white/5 p-3 transition-colors hover:bg-white/10 sm:min-h-[190px] sm:p-4">
-								<Plus className="h-10 w-10 text-spotify-text-muted sm:h-12 sm:w-12" />
-								<p className="absolute bottom-3 left-3 right-3 truncate text-sm font-medium text-white sm:bottom-4 sm:left-4 sm:right-4">
-									Create playlist
-								</p>
-							</div>
-
-							{playlists.map((playlist) => (
-								<div
-									key={playlist.id}
-									className="group cursor-pointer rounded-lg bg-white/5 p-3 transition-colors hover:bg-white/10 sm:p-4"
-									onClick={() => handlePlayPlaylist(playlist)}
-								>
-									<div className="relative mb-3">
-										<div className="aspect-square w-full rounded-lg bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center">
-											<Play className="h-10 w-10 text-white/80 sm:h-12 sm:w-12" />
-										</div>
-
-										<Button
-											size="icon"
-											className="absolute bottom-2 right-2 h-10 w-10 rounded-full bg-spotify-green opacity-0 shadow-xl transition-all hover:bg-spotify-green-hover group-hover:opacity-100 md:h-12 md:w-12"
-										>
-											<Play
-												className="ml-0.5 h-4 w-4 text-black md:h-5 md:w-5"
-												fill="currentColor"
-											/>
-										</Button>
-									</div>
-
-									<p className="truncate text-sm font-medium text-white sm:text-base">
-										{playlist.title}
+					{activeTab === "albums" ? (
+						<>
+							{savedAlbums.length === 0 ? (
+								<div className="flex flex-col items-center justify-center py-16 text-center">
+									<Disc3 className="mb-4 h-14 w-14 text-white/20" />
+									<p className="mb-2 text-base font-semibold text-white">
+										No saved albums yet
 									</p>
-									<p className="text-xs text-spotify-text-muted sm:text-sm">
-										Playlist • {playlist.tracks?.length || 0} songs
+									<p className="text-sm text-spotify-text-muted">
+										Open an album and press the heart button to save it here
 									</p>
 								</div>
-							))}
-						</div>
+							) : (
+								<div className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4 md:grid-cols-4 lg:grid-cols-5">
+									{savedAlbums.map((album) => (
+										<Link
+											key={album.id}
+											to={`/albums/${album.id}`}
+											className="group relative block rounded-lg bg-white/5 p-3 transition-colors hover:bg-white/10 sm:p-4"
+										>
+											<div className="relative mb-3">
+												<img
+													src={album.image_url || "/album-placeholder.png"}
+													alt={album.title}
+													className="aspect-square w-full rounded-lg object-cover"
+												/>
+
+												<Button
+													size="icon"
+													onClick={(e) => handlePlayAlbum(e, album.songs)}
+													className="absolute bottom-2 right-2 h-10 w-10 rounded-full bg-spotify-green opacity-0 shadow-xl transition-all hover:bg-spotify-green-hover group-hover:opacity-100 md:h-12 md:w-12"
+												>
+													<Play
+														className="ml-0.5 h-4 w-4 text-black md:h-5 md:w-5"
+														fill="currentColor"
+													/>
+												</Button>
+											</div>
+
+											<p className="truncate text-sm font-medium text-white sm:text-base">
+												{album.title}
+											</p>
+											<p className="truncate text-xs text-spotify-text-muted sm:text-sm">
+												{album.artist}
+											</p>
+
+											<button
+												onClick={(e) => {
+													e.preventDefault();
+													e.stopPropagation();
+													removeAlbum(album.id);
+												}}
+												className="mt-2 flex items-center gap-1 text-xs text-spotify-green hover:text-white transition-colors"
+											>
+												<Heart className="h-3 w-3" fill="currentColor" />
+												<span>Saved</span>
+											</button>
+										</Link>
+									))}
+								</div>
+							)}
+						</>
 					) : (
-						<div className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4 md:grid-cols-4 lg:grid-cols-5">
-							{albums.map((album) => (
-								<div
-									key={album.id}
-									className="group cursor-pointer rounded-lg bg-white/5 p-3 transition-colors hover:bg-white/10 sm:p-4"
-									onClick={() => handlePlayAlbum(album)}
-								>
-									<div className="relative mb-3">
-										<img
-											src={album.image_url || "/album-placeholder.png"}
-											alt={album.title}
-											className="aspect-square w-full rounded-lg object-cover"
-										/>
-
-										<Button
-											size="icon"
-											className="absolute bottom-2 right-2 h-10 w-10 rounded-full bg-spotify-green opacity-0 shadow-xl transition-all hover:bg-spotify-green-hover group-hover:opacity-100 md:h-12 md:w-12"
-										>
-											<Play
-												className="ml-0.5 h-4 w-4 text-black md:h-5 md:w-5"
-												fill="currentColor"
-											/>
-										</Button>
-									</div>
-
-									<p className="truncate text-sm font-medium text-white sm:text-base">
-										{album.title}
+						<>
+							{likedSongs.length === 0 ? (
+								<div className="flex flex-col items-center justify-center py-16 text-center">
+									<BookOpen className="mb-4 h-14 w-14 text-white/20" />
+									<p className="mb-2 text-base font-semibold text-white">
+										No liked songs yet
 									</p>
-									<p className="truncate text-xs text-spotify-text-muted sm:text-sm">
-										{album.artist}
+									<p className="text-sm text-spotify-text-muted">
+										Press the heart button on any track to add it here
 									</p>
 								</div>
-							))}
-						</div>
-					)}
+							) : (
+								<div className="space-y-2">
+									{likedSongs.map((song, i) => (
+										<div
+											key={song.id}
+											className="group flex cursor-pointer items-center gap-3 rounded-lg p-2.5 transition-colors hover:bg-white/10 sm:gap-4 sm:p-3"
+											onClick={() => setCurrentSong(song)}
+										>
+											<span className="w-5 text-xs text-spotify-text-muted sm:w-6 sm:text-sm">
+												{i + 1}
+											</span>
 
-					{activeTab === "playlists" && playlists.length === 0 && !isLoading && (
-						<p className="py-8 text-sm text-spotify-text-muted">
-							You don't have any playlists yet. Create one to get started.
-						</p>
-					)}
+											<img
+												src={song.image_url || "/album-placeholder.png"}
+												alt=""
+												className="h-10 w-10 rounded object-cover sm:h-12 sm:w-12"
+											/>
 
-					{activeTab === "albums" && albums.length === 0 && !isLoading && (
-						<p className="py-8 text-sm text-spotify-text-muted">
-							No albums in your library. Browse and add some!
-						</p>
+											<div className="min-w-0 flex-1">
+												<p className="truncate text-sm font-medium text-white sm:text-base">
+													{song.title}
+												</p>
+												<p className="truncate text-xs text-spotify-text-muted sm:text-sm">
+													{song.artist}
+													{song.album_name ? ` • ${song.album_name}` : ""}
+												</p>
+											</div>
+
+											<button
+												onClick={(e) => {
+													e.stopPropagation();
+													unlikeSong(song.id);
+												}}
+												className="text-spotify-green hover:text-white transition-colors"
+											>
+												<Heart className="h-4 w-4" fill="currentColor" />
+											</button>
+
+											<Button
+												size="icon"
+												className="h-9 w-9 rounded-full bg-spotify-green opacity-0 transition-opacity group-hover:opacity-100 hover:bg-spotify-green-hover sm:h-10 sm:w-10"
+												onClick={(e) => {
+													e.stopPropagation();
+													setCurrentSong(song);
+												}}
+											>
+												<Play
+													className="ml-0.5 h-4 w-4 text-black sm:h-5 sm:w-5"
+													fill="currentColor"
+												/>
+											</Button>
+										</div>
+									))}
+								</div>
+							)}
+						</>
 					)}
 				</div>
 			</ScrollArea>

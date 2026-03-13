@@ -3,9 +3,10 @@ import { useParams } from "react-router-dom";
 import { useMusicStore } from "@/stores/useMusicStore";
 import { usePlayerStore } from "@/stores/usePlayerStore";
 import { useArtistStore } from "@/stores/useArtistStore";
+import { useLibraryStore } from "@/stores/useLibraryStore";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Button } from "@/components/ui/button";
-import { Play, Pause } from "lucide-react";
+import { Play, Pause, Heart } from "lucide-react";
 import Topbar from "@/components/Topbar";
 import { Album, Song } from "@/types";
 
@@ -14,6 +15,7 @@ const AlbumPage = () => {
 	const { fetchAlbumById } = useMusicStore();
 	const { currentSong, isPlaying, togglePlay, playAlbum } = usePlayerStore();
 	const { openArtist } = useArtistStore();
+	const { saveAlbum, removeAlbum, isAlbumSaved, likeSong, unlikeSong, isSongLiked } = useLibraryStore();
 	const [album, setAlbum] = useState<Album | null>(null);
 	const [isLoading, setIsLoading] = useState(true);
 
@@ -31,6 +33,10 @@ const AlbumPage = () => {
 
 	const handlePlayAlbum = () => {
 		if (!album) return;
+		if (isAlbumPlaying) {
+			togglePlay();
+			return;
+		}
 		const currentIndex = album.songs.findIndex((s) => s.id === currentSong?.id);
 		playAlbum(album.songs, currentIndex >= 0 ? currentIndex : 0);
 	};
@@ -49,6 +55,8 @@ const AlbumPage = () => {
 		return `${mins}:${secs.toString().padStart(2, "0")}`;
 	};
 
+	const isAlbumPlaying = isPlaying && !!album && album.songs.some((s) => s.id === currentSong?.id);
+
 	if (isLoading || !album) {
 		return (
 			<main className="flex flex-1 flex-col min-h-0 overflow-hidden bg-spotify-charcoal">
@@ -60,14 +68,23 @@ const AlbumPage = () => {
 		);
 	}
 
-	const isAlbumPlaying = isPlaying && album.songs.some((s) => s.id === currentSong?.id);
-
 	return (
 		<main className="flex flex-1 flex-col min-h-0 overflow-hidden bg-spotify-charcoal">
-			<div className="relative h-[260px] min-h-[260px] bg-gradient-to-b from-indigo-900/60 via-spotify-charcoal to-spotify-charcoal sm:h-[320px] sm:min-h-[320px] md:h-[360px] md:min-h-[360px] lg:h-[420px] lg:min-h-[420px]">
-				<Topbar />
+		<div className="relative h-[260px] min-h-[260px] sm:h-[320px] sm:min-h-[320px] md:h-[360px] md:min-h-[360px] lg:h-[420px] lg:min-h-[420px] overflow-hidden">
+			{/* Фоновое изображение */}
+			<img
+				src="/album-header-bg.png"
+				alt=""
+				className="absolute inset-0 h-full w-full object-cover object-center"
+			/>
+			{/* Тёмный градиент поверх — для читаемости текста */}
+			<div className="absolute inset-0 bg-gradient-to-b from-black/30 via-black/50 to-spotify-charcoal" />
 
-				<div className="absolute bottom-0 left-0 right-0 px-4 pb-5 sm:px-5 md:px-6 md:pb-6">
+			<div className="relative z-10">
+				<Topbar />
+			</div>
+
+			<div className="absolute bottom-0 left-0 right-0 z-10 px-4 pb-5 sm:px-5 md:px-6 md:pb-6">
 					<div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:gap-5 lg:gap-6">
 						<img
 							src={album.image_url || "/album-placeholder.png"}
@@ -103,24 +120,41 @@ const AlbumPage = () => {
 				</div>
 			</div>
 
-			<ScrollArea className="flex-1 scrollbar-spotify">
-				<div className="relative z-10 -mt-4 px-4 pb-28 pt-0 sm:-mt-5 sm:px-5 md:-mt-6 md:px-6 md:pb-32">
-					<div className="pb-4">
-						<Button
-							size="icon"
-							className="h-12 w-12 rounded-full bg-spotify-green shadow-xl transition-all hover:scale-105 hover:bg-spotify-green-hover sm:h-14 sm:w-14"
-							onClick={handlePlayAlbum}
-						>
-							{isAlbumPlaying ? (
-								<Pause className="h-6 w-6 text-black sm:h-7 sm:w-7" fill="currentColor" />
-							) : (
-								<Play
-									className="ml-0.5 h-6 w-6 text-black sm:h-7 sm:w-7"
-									fill="currentColor"
-								/>
-							)}
-						</Button>
-					</div>
+		<ScrollArea className="flex-1 scrollbar-spotify">
+			<div className="relative z-10 px-4 pb-28 pt-5 sm:px-5 sm:pt-6 md:px-6 md:pb-32">
+				<div className="flex items-center gap-4 pb-4">
+					<Button
+						size="icon"
+						className="h-12 w-12 rounded-full bg-spotify-green shadow-xl transition-all hover:scale-105 hover:bg-spotify-green-hover sm:h-14 sm:w-14"
+						onClick={handlePlayAlbum}
+					>
+						{isAlbumPlaying ? (
+							<Pause className="h-6 w-6 text-black sm:h-7 sm:w-7" fill="currentColor" />
+						) : (
+							<Play
+								className="ml-0.5 h-6 w-6 text-black sm:h-7 sm:w-7"
+								fill="currentColor"
+							/>
+						)}
+					</Button>
+
+					<button
+						onClick={() =>
+							isAlbumSaved(album.id) ? removeAlbum(album.id) : saveAlbum(album)
+						}
+						className="transition-transform hover:scale-110"
+						title={isAlbumSaved(album.id) ? "Remove from library" : "Save to library"}
+					>
+						<Heart
+							className={`h-8 w-8 sm:h-9 sm:w-9 transition-colors ${
+								isAlbumSaved(album.id)
+									? "text-spotify-green"
+									: "text-white/50 hover:text-white"
+							}`}
+							fill={isAlbumSaved(album.id) ? "currentColor" : "none"}
+						/>
+					</button>
+				</div>
 
 					<div className="space-y-1">
 						{album.songs.map((song, index) => {
@@ -168,6 +202,25 @@ const AlbumPage = () => {
 											{song.artist}
 										</p>
 									</div>
+
+									<button
+										onClick={(e) => {
+											e.stopPropagation();
+											isSongLiked(song.id) ? unlikeSong(song.id) : likeSong(song);
+										}}
+										className={`shrink-0 transition-transform hover:scale-110 ${
+											isSongLiked(song.id) ? "" : "opacity-0 group-hover:opacity-100"
+										}`}
+									>
+										<Heart
+											className={`h-4 w-4 transition-colors ${
+												isSongLiked(song.id)
+													? "text-spotify-green"
+													: "text-white/50 hover:text-white"
+											}`}
+											fill={isSongLiked(song.id) ? "currentColor" : "none"}
+										/>
+									</button>
 
 									<span className="shrink-0 text-xs text-spotify-text-muted sm:text-sm">
 										{formatDuration(song.duration)}

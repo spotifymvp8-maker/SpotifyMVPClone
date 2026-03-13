@@ -40,20 +40,31 @@ const HomePage = () => {
 
 	return (
 		<main className="flex-1 flex flex-col min-h-0 bg-spotify-charcoal overflow-hidden">
-			{/* Gradient header - как в Spotify */}
-			<div className="relative h-[220px] min-h-[220px] sm:h-[260px] sm:min-h-[260px] md:h-[300px] md:min-h-[300px] lg:h-[332px] lg:minh-[332px] bg-gradient-to-b from-indigo-600/80 via-spotify-charcoal to-spotify-charcoal">
+		{/* Header с фоновой картинкой */}
+		<div className="relative h-[220px] min-h-[220px] sm:h-[260px] sm:min-h-[260px] md:h-[300px] md:min-h-[300px] lg:h-[332px] lg:min-h-[332px] overflow-hidden">
+			{/* Фоновое изображение */}
+			<img
+				src="/home-header-bg.png"
+				alt=""
+				className="absolute inset-0 h-full w-full object-cover object-center"
+			/>
+			{/* Градиент для читаемости текста */}
+			<div className="absolute inset-0 bg-gradient-to-b from-black/20 via-black/40 to-spotify-charcoal" />
+
+			<div className="relative z-10">
 				<Topbar />
-
-				<div className="absolute bottom-0 left-0 right-0 px-4 pb-5 pt-0 sm:px-5 md:px-6 md:pb-6">
-					<h1 className="text-2xl sm:text-3xl md:text-4xl font-bold text-white mb-2">
-						{getGreeting()}
-					</h1>
-
-					<p className="text-xs sm:text-sm text-spotify-text-muted max-w-[520px]">
-						We'll recommend music based on your taste
-					</p>
-				</div>
 			</div>
+
+			<div className="absolute bottom-0 left-0 right-0 z-10 px-4 pb-5 sm:px-5 md:px-6 md:pb-6">
+				<h1 className="text-2xl sm:text-3xl md:text-4xl font-bold text-white drop-shadow-lg mb-2">
+					{getGreeting()}
+				</h1>
+
+				<p className="text-xs sm:text-sm text-white/70 drop-shadow max-w-[520px]">
+					We'll recommend music based on your taste
+				</p>
+			</div>
+		</div>
 
 			{/* Content */}
 			<ScrollArea className="flex-1 scrollbar-spotify">

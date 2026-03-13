@@ -1,8 +1,9 @@
 import { Song } from "@/types";
-import { Play } from "lucide-react";
+import { Play, Heart } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { usePlayerStore } from "@/stores/usePlayerStore";
 import { useArtistStore } from "@/stores/useArtistStore";
+import { useLibraryStore } from "@/stores/useLibraryStore";
 import { Skeleton } from "@/components/skeletons/Skeleton";
 import { Link } from "react-router-dom";
 
@@ -15,6 +16,7 @@ interface SectionGridProps {
 const SectionGrid = ({ title, songs, isLoading }: SectionGridProps) => {
 	const { setCurrentSong, currentSong } = usePlayerStore();
 	const { openArtist } = useArtistStore();
+	const { likeSong, unlikeSong, isSongLiked } = useLibraryStore();
 
 	const handlePlay = (e: React.MouseEvent, song: Song) => {
 		e.preventDefault();
@@ -68,15 +70,31 @@ const SectionGrid = ({ title, songs, isLoading }: SectionGridProps) => {
 									className="aspect-square w-full rounded-lg object-cover shadow-spotify-card"
 								/>
 
-								<Button
-									size="icon"
-									onClick={(e) => handlePlay(e, song)}
-									className="absolute bottom-2 right-2 h-10 w-10 rounded-full border-0 bg-spotify-green opacity-0 shadow-xl transition-all hover:scale-110 hover:bg-spotify-green-hover group-hover:opacity-100 md:h-12 md:w-12"
-								>
-									<Play className="ml-0.5 h-4 w-4 text-black md:h-5 md:w-5" 
-									fill="currentColor" 
+						<Button
+								size="icon"
+								onClick={(e) => handlePlay(e, song)}
+								className="absolute bottom-2 right-2 h-10 w-10 rounded-full border-0 bg-spotify-green opacity-0 shadow-xl transition-all hover:scale-110 hover:bg-spotify-green-hover group-hover:opacity-100 md:h-12 md:w-12"
+							>
+								<Play className="ml-0.5 h-4 w-4 text-black md:h-5 md:w-5" 
+								fill="currentColor" 
+							/>
+							</Button>
+
+							<button
+								onClick={(e) => {
+									e.preventDefault();
+									e.stopPropagation();
+									isSongLiked(song.id) ? unlikeSong(song.id) : likeSong(song);
+								}}
+								className={`absolute top-2 right-2 rounded-full bg-black/50 p-1.5 transition-all hover:scale-110 ${
+									isSongLiked(song.id) ? "opacity-100" : "opacity-0 group-hover:opacity-100"
+								}`}
+							>
+								<Heart
+									className={`h-4 w-4 ${isSongLiked(song.id) ? "text-spotify-green" : "text-white"}`}
+									fill={isSongLiked(song.id) ? "currentColor" : "none"}
 								/>
-								</Button>
+							</button>
 							</div>
 
 							<h3 className="mb-1 truncate text-sm font-semibold text-white sm:text-base">

@@ -1,18 +1,20 @@
-import { Link, useLocation } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useEffect } from "react";
 import { useMusicStore } from "@/stores/useMusicStore";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Button } from "@/components/ui/button";
 import { Play, Home, Search, Library } from "lucide-react";
 import { usePlayerStore } from "@/stores/usePlayerStore";
-import { isCancel } from "axios";
 
 const LeftSidebar = () => {
 	const { albums, fetchAlbums } = useMusicStore();
 	const { playAlbum } = usePlayerStore();
 	const location = useLocation();
+	const navigate = useNavigate();
 
-	const handlePlayAlbum = (albumSongs: any[]) => {
+	const handlePlayAlbum = (e: React.MouseEvent, albumSongs: any[]) => {
+		e.preventDefault();
+		e.stopPropagation();
 		playAlbum(albumSongs, 0);
 	};
 
@@ -99,36 +101,37 @@ const LeftSidebar = () => {
 							</span>
 						</div>
 
-						<div className="space-y-1">
-							{albums.slice(0, 8).map((album) => (
-								<div
-									key={album.id}
-									className="group flex items-center gap-2 lg:gap-3 px-3 py-2 rounded-md hover:bg-white/10 cursor-pointer transition-colors"
-									onClick={() => handlePlayAlbum(album.songs)}
-								>
-									<img
-										src={album.image_url || "/album-placeholder.png"}
-										alt={album.title}
-										className="h-9 w-9 lg:h-10 lg:w-10 rounded object-cover shadow-md shrink-0"
-									/>
-									<div className="flex-1 min-w-0">
-										<p className="text-xs lg:text-sm font-medium truncate text-white">
-											{album.title}
-										</p>
-										<p className="text-[11px] lg:text-xs text-spotify-text-muted truncate">
-											{album.artist}
-										</p>
-									</div>
-
-									<Button
-										variant="ghost"
-										size="icon"
-										className="hidden lg:flex opacity-0 group-hover:opacity-100 transition-opacity h-8 w-8 rounded-full bg-spotify-green hover:bg-spotify-green-hover text-black hover:scale-110 shrink-0"
-									>
-										<Play className="h-4 w-4 ml-0.5" fill="currentColor" />
-									</Button>
+					<div className="space-y-1">
+						{albums.slice(0, 8).map((album) => (
+							<Link
+								key={album.id}
+								to={`/albums/${album.id}`}
+								className="group flex items-center gap-2 lg:gap-3 px-3 py-2 rounded-md hover:bg-white/10 cursor-pointer transition-colors"
+							>
+								<img
+									src={album.image_url || "/album-placeholder.png"}
+									alt={album.title}
+									className="h-9 w-9 lg:h-10 lg:w-10 rounded object-cover shadow-md shrink-0"
+								/>
+								<div className="flex-1 min-w-0">
+									<p className="text-xs lg:text-sm font-medium truncate text-white">
+										{album.title}
+									</p>
+									<p className="text-[11px] lg:text-xs text-spotify-text-muted truncate">
+										{album.artist}
+									</p>
 								</div>
-							))}
+
+								<Button
+									variant="ghost"
+									size="icon"
+									className="hidden lg:flex opacity-0 group-hover:opacity-100 transition-opacity h-8 w-8 rounded-full bg-spotify-green hover:bg-spotify-green-hover text-black hover:scale-110 shrink-0"
+									onClick={(e) => handlePlayAlbum(e, album.songs)}
+								>
+									<Play className="h-4 w-4 ml-0.5" fill="currentColor" />
+								</Button>
+							</Link>
+						))}
 						</div>
 					</div>
 				</div>
