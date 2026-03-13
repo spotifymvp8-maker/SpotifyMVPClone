@@ -95,7 +95,7 @@ const LibraryPage = () => {
 			</div>
 
         <ScrollArea className="flex-1 scrollbar-spotify">
-          <div className="relative z-10 -mt-6 px-4 pb-28 pt-0 sm:-mt-7 sm:px-5 md:-mt-8 md:px-6 md:pb-32">
+          <div className="relative z-10 mt-0 px-4 pt-6 pb-28 sm:px-5 md:px-6 md:pb-32">
                   
             {isLoading ? (
               <p className="text-spotify-text-muted">Loading...</p>
