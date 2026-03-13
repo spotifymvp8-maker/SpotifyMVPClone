@@ -74,6 +74,7 @@ def get_song(track_id: UUID, db: Session = Depends(get_db)):
     return track
 
 
+@router.post("", response_model=TrackResponse)
 @router.post("/", response_model=TrackResponse)
 def create_song(
     song_data: TrackCreate,
@@ -81,7 +82,9 @@ def create_song(
     db: Session = Depends(get_db),
 ):
     """Создать новый трек (только админ)."""
-    # Validate album if provided
+    # При наличии album_id — подставляем album_name из альбома
+    data = song_data.model_dump()
+    album_name = ""
     if song_data.album_id:
         album = db.query(Album).filter(Album.id == song_data.album_id).first()
         if not album:
@@ -89,8 +92,9 @@ def create_song(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="Album not found"
             )
-    
-    track = Track(**song_data.model_dump())
+        album_name = album.title
+    data["album_name"] = album_name
+    track = Track(**data)
     db.add(track)
     db.commit()
     db.refresh(track)
@@ -113,6 +117,12 @@ def update_song(
         )
     
     update_data = song_data.model_dump(exclude_unset=True)
+    if "album_id" in update_data and update_data["album_id"]:
+        album = db.query(Album).filter(Album.id == update_data["album_id"]).first()
+        if album:
+            update_data["album_name"] = album.title
+    elif "album_id" in update_data and update_data["album_id"] is None:
+        update_data["album_name"] = ""
     for field, value in update_data.items():
         setattr(track, field, value)
     

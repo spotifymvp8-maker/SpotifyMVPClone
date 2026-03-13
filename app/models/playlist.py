@@ -1,4 +1,8 @@
-"""Playlist Service — playlists."""
+"""
+Модель Playlist — плейлист пользователя.
+
+owner_id → user_profiles (не auth_users!). Треки связаны через PlaylistTrack (position).
+"""
 
 import uuid
 
@@ -20,7 +24,7 @@ class Playlist(Base):
         index=True,
     )
     title = Column(String(255), nullable=False)
-    is_public = Column(Boolean, nullable=False, default=True)
+    is_public = Column(Boolean, nullable=False, default=True)  # Виден ли другим
     created_at = Column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )

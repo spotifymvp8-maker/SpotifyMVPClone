@@ -37,12 +37,12 @@ function App() {
 						path='/albums/:albumId'
 						element={isAuthenticated ? <AlbumPage /> : <Navigate to='/login' />}
 					/>
-					<Route
-						path='/admin'
-						element={isAuthenticated ? <AdminPage /> : <Navigate to='/login' />}
-					/>
 					<Route path='*' element={<NotFoundPage />} />
 				</Route>
+				<Route
+					path='/admin'
+					element={isAuthenticated ? <AdminPage /> : <Navigate to='/login' />}
+				/>
 			</Routes>
 			<Toaster />
 		</>

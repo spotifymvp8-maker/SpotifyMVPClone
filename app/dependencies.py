@@ -1,4 +1,11 @@
-"""FastAPI dependencies."""
+"""
+FastAPI dependencies для авторизации.
+
+Использование в endpoints:
+    - get_current_user_id: обязательная авторизация (401 если нет токена)
+    - get_optional_user_id: опциональная (возвращает None если не авторизован)
+    - get_admin_user_id: только для админов (403 если не админ)
+"""
 
 from typing import Optional
 from uuid import UUID
@@ -12,14 +19,15 @@ from app.database import get_db
 from app.models.auth_user import AuthUser
 from app.utils import decode_token
 
-security = HTTPBearer()
-security_optional = HTTPBearer(auto_error=False)
+# HTTPBearer — извлекает токен из заголовка Authorization: Bearer <token>
+security = HTTPBearer()           # Требует токен, иначе 403
+security_optional = HTTPBearer(auto_error=False)  # Токен опционален
 
 
 def get_optional_user_id(
     credentials: Optional[HTTPAuthorizationCredentials] = Depends(security_optional),
 ) -> Optional[UUID]:
-    """Получить ID текущего пользователя или None, если не авторизован."""
+    """ID пользователя из JWT или None (для публичных endpoints с опциональным контентом)."""
     if not credentials:
         return None
     payload = decode_token(credentials.credentials)
@@ -34,7 +42,7 @@ def get_optional_user_id(
 def get_current_user_id(
     credentials: HTTPAuthorizationCredentials = Depends(security),
 ) -> UUID:
-    """Получить ID текущего пользователя из JWT."""
+    """ID пользователя из JWT. Вызывает 401, если токен отсутствует или невалиден."""
     token = credentials.credentials
     payload = decode_token(token)
 
@@ -58,7 +66,7 @@ def get_admin_user_id(
     user_id: UUID = Depends(get_current_user_id),
     db: Session = Depends(get_db),
 ) -> UUID:
-    """Проверить, что текущий пользователь — админ (email в ADMIN_EMAILS)."""
+    """Проверка админских прав: email пользователя должен быть в ADMIN_EMAILS. Иначе 403."""
     user = db.query(AuthUser).filter(AuthUser.id == user_id).first()
     if not user or user.email.lower() not in ADMIN_EMAILS:
         raise HTTPException(

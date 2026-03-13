@@ -1,4 +1,8 @@
-"""Album Service — albums."""
+"""
+Модель Album — музыкальный альбом.
+
+Связь: один альбом — много треков (songs). Треки ссылаются на album_id.
+"""
 
 import uuid
 
@@ -15,7 +19,7 @@ class Album(Base):
     id = Column(PG_UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     title = Column(String(255), nullable=False)
     artist = Column(String(255), nullable=False)
-    image_url = Column(String(500), nullable=False)
+    image_url = Column(String(500), nullable=False)   # Обложка альбома
     release_year = Column(Integer, nullable=False)
     created_at = Column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
@@ -27,4 +31,4 @@ class Album(Base):
         nullable=False,
     )
 
-    songs = relationship("Track", back_populates="album_ref", cascade="all, delete-orphan")
+    songs = relationship("Track", back_populates="album_ref", cascade="all, delete-orphan")  # При удалении альбома — удаляются треки

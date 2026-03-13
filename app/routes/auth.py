@@ -1,4 +1,11 @@
-"""Auth routes."""
+"""
+Auth routes — регистрация, вход, refresh токена.
+
+- POST /register — создаёт AuthUser + UserProfile, возвращает токены
+- POST /login — проверяет пароль, возвращает токены
+- POST /refresh — обновляет access_token по refresh_token (при 401 на frontend)
+- GET /me — текущий пользователь по Bearer токену
+"""
 
 from datetime import timedelta
 from uuid import UUID
@@ -32,7 +39,8 @@ def auth_health():
 
 @router.post("/register", response_model=Token)
 def register(user_data: UserCreate, db: Session = Depends(get_db)):
-    """Регистрация: Auth создаёт только auth_users. Профиль создаёт User Service при первом GET /users/me."""
+    """Регистрация: создаёт AuthUser и UserProfile, возвращает access + refresh токены."""
+    # Проверка уникальности email и username
     existing_user = db.query(AuthUser).filter(AuthUser.email == user_data.email).first()
     if existing_user:
         raise HTTPException(
@@ -47,6 +55,7 @@ def register(user_data: UserCreate, db: Session = Depends(get_db)):
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Username already taken",
         )
+    # Создаём запись в auth_users (пароль хранится только в виде хеша)
     hashed_password = get_password_hash(user_data.password)
     user = AuthUser(
         email=user_data.email,
@@ -57,9 +66,11 @@ def register(user_data: UserCreate, db: Session = Depends(get_db)):
     db.commit()
     db.refresh(user)
 
+    # UserProfile создаётся сразу (username из initial_username)
     from app.routes.users import _ensure_profile
 
     profile = _ensure_profile(user.id, db)
+    # JWT: sub = user_id, используется в get_current_user_id
     access_token = create_access_token(
         data={"sub": str(user.id), "email": user.email},
         expires_delta=timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES),
@@ -116,7 +127,7 @@ def logout():
 
 @router.post("/refresh", response_model=Token)
 def refresh_token(refresh_data: dict, db: Session = Depends(get_db)):
-    """Обновление токена."""
+    """Обновление access_token по refresh_token. Вызывается frontend при 401."""
     refresh_token = refresh_data.get("refresh_token")
     if not refresh_token:
         raise HTTPException(

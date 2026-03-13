@@ -1,4 +1,9 @@
-"""User Service — user_profiles."""
+"""
+Модель UserProfile — публичный профиль пользователя.
+
+id совпадает с auth_users.id (1:1). Хранит username, avatar, bio.
+Плейлисты и история прослушиваний ссылаются на user_profiles, а не на auth_users.
+"""
 
 from sqlalchemy import Column, DateTime, ForeignKey, String, func
 from sqlalchemy.dialects.postgresql import UUID as PG_UUID
@@ -16,8 +21,8 @@ class UserProfile(Base):
         primary_key=True,
     )
     username = Column(String(50), unique=True, nullable=False, index=True)
-    avatar_url = Column(String(255))
-    bio = Column(String(500))
+    avatar_url = Column(String(255))   # URL аватара
+    bio = Column(String(500))          # О себе
     created_at = Column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )

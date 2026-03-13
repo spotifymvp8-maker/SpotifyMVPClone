@@ -22,7 +22,7 @@ export default defineConfig({
         ws: true,
       },
       '/media': {
-        target: 'http://localhost:3000',
+        target: 'http://localhost:8000',
         changeOrigin: true,
       }
     }

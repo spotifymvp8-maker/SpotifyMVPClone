@@ -1,4 +1,9 @@
-"""Seed routes - endpoints для загрузки тестовых данных."""
+"""
+Seed routes — API для загрузки тестовых данных.
+
+POST /api/seed/seed — создаёт пользователя, альбомы, треки, плейлист.
+    ?force=true — обновить URL треков (SoundHelix) без пересоздания альбомов.
+"""
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
@@ -65,9 +70,14 @@ def seed_database(
     force: bool = Query(False, description="Перезаписать треки (обновить file_url)"),
     db: Session = Depends(get_db),
 ):
-    """Загрузить тестовые данные в базу данных."""
+    """
+    Загрузить тестовые данные в БД.
+    
+    force=false: если альбомы уже есть — возвращает hint, не перезаписывает.
+    force=true: обновляет file_url/image_url у существующих треков (для перехода на SoundHelix).
+    """
     try:
-        # Создаем или обновляем тестового пользователя
+        # 1. Тестовый пользователь (test@example.com / test123)
         existing_user = db.query(AuthUser).filter(AuthUser.email == TEST_USER["email"]).first()
         if not existing_user:
             user = AuthUser(
@@ -90,7 +100,7 @@ def seed_database(
             db.commit()
             user = existing_user
 
-        # Проверяем, есть ли уже альбомы
+        # 2. Если альбомы уже есть и force=false — не перезаписываем
         existing_albums = db.query(Album).count()
         if existing_albums > 0 and not force:
             return {
@@ -101,7 +111,7 @@ def seed_database(
             }
 
         if force and existing_albums > 0:
-            # Обновляем file_url и image_url у существующих треков
+            # force=true: обновляем URL треков (например, на SoundHelix)
             tracks = db.query(Track).all()
             for i, track in enumerate(tracks):
                 if i < len(TEST_TRACKS):
@@ -114,7 +124,7 @@ def seed_database(
                 "tracks_updated": len(tracks),
             }
 
-        # Создаем альбомы и треки
+        # 3. Создаём альбомы и треки (по 3 трека на альбом)
         for idx, album_data in enumerate(TEST_ALBUMS):
             album = Album(**album_data)
             db.add(album)
@@ -135,7 +145,7 @@ def seed_database(
                 db.add(track)
             db.commit()
 
-        # Добавляем треки без альбома
+        # 4. Треки без альбома (синглы)
         for track_data in TEST_TRACKS[9:]:
             track = Track(
                 title=track_data["title"],
@@ -148,7 +158,7 @@ def seed_database(
             db.add(track)
         db.commit()
 
-        # Создаем тестовый плейлист
+        # 5. Тестовый плейлист с первыми 5 треками
         playlist = Playlist(
             title="My Favorite Songs",
             owner_id=user.id,

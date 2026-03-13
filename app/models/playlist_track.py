@@ -1,4 +1,8 @@
-"""Playlist Service — playlist_tracks."""
+"""
+Модель PlaylistTrack — связь плейлист ↔ трек (многие-ко-многим).
+
+position определяет порядок треков в плейлисте.
+"""
 
 import uuid
 
@@ -25,7 +29,7 @@ class PlaylistTrack(Base):
         nullable=False,
         index=True,
     )
-    position = Column(Integer, nullable=False)
+    position = Column(Integer, nullable=False)  # Порядок в плейлисте (0, 1, 2, ...)
 
     __table_args__ = (
         UniqueConstraint("playlist_id", "position", name="uq_playlist_position"),

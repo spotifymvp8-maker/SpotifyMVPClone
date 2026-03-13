@@ -6,6 +6,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
 from app.database import get_db
+from app.dependencies import get_admin_user_id
 from app.models.album import Album
 from app.models.track import Track
 from app.schemas import AlbumCreate, AlbumResponse, AlbumUpdate
@@ -13,6 +14,7 @@ from app.schemas import AlbumCreate, AlbumResponse, AlbumUpdate
 router = APIRouter()
 
 
+@router.get("", response_model=list[AlbumResponse])
 @router.get("/", response_model=list[AlbumResponse])
 def get_all_albums(db: Session = Depends(get_db)):
     """Получить все альбомы."""
@@ -32,9 +34,14 @@ def get_album(album_id: UUID, db: Session = Depends(get_db)):
     return album
 
 
+@router.post("", response_model=AlbumResponse)
 @router.post("/", response_model=AlbumResponse)
-def create_album(album_data: AlbumCreate, db: Session = Depends(get_db)):
-    """Создать новый альбом."""
+def create_album(
+    album_data: AlbumCreate,
+    _: UUID = Depends(get_admin_user_id),
+    db: Session = Depends(get_db),
+):
+    """Создать новый альбом (только админ)."""
     album = Album(**album_data.model_dump())
     db.add(album)
     db.commit()
@@ -43,7 +50,12 @@ def create_album(album_data: AlbumCreate, db: Session = Depends(get_db)):
 
 
 @router.put("/{album_id}", response_model=AlbumResponse)
-def update_album(album_id: UUID, album_data: AlbumUpdate, db: Session = Depends(get_db)):
+def update_album(
+    album_id: UUID,
+    album_data: AlbumUpdate,
+    _: UUID = Depends(get_admin_user_id),
+    db: Session = Depends(get_db),
+):
     """Обновить альбом."""
     album = db.query(Album).filter(Album.id == album_id).first()
     if not album:
@@ -62,7 +74,11 @@ def update_album(album_id: UUID, album_data: AlbumUpdate, db: Session = Depends(
 
 
 @router.delete("/{album_id}")
-def delete_album(album_id: UUID, db: Session = Depends(get_db)):
+def delete_album(
+    album_id: UUID,
+    _: UUID = Depends(get_admin_user_id),
+    db: Session = Depends(get_db),
+):
     """Удалить альбом."""
     album = db.query(Album).filter(Album.id == album_id).first()
     if not album:
