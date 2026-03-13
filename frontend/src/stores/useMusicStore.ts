@@ -77,6 +77,7 @@ interface MusicStore {
 	uploadAudio: (file: File) => Promise<string | null>;
 
 	fetchMyPlaylists: () => Promise<Playlist[]>;
+	fetchPlaylistById: (id: string) => Promise<Playlist | null>;
 	addTrackToPlaylist: (playlistId: string, trackId: string) => Promise<void>;
 }
 
@@ -263,6 +264,18 @@ export const useMusicStore = create<MusicStore>((set, get) => ({
 			set({ error: extractError(e), isLoading: false });
 			return [];
 		}
+	},
+
+	fetchPlaylistById: async (id: string): Promise<Playlist | null> => {
+  		set({ isLoading: true, error: null });
+  		try {
+  		  const res = await axiosInstance.get(`/api/playlists/${id}`);
+  		  set({ isLoading: false });
+  		  return res.data;
+  		} catch (e) {
+  		  set({ error: extractError(e), isLoading: false });
+  		  return null;
+  		}
 	},
 
 	addTrackToPlaylist: async (playlistId, trackId) => {
