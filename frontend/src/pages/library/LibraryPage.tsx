@@ -69,13 +69,25 @@ const LibraryPage = () => {
   ];
 
 	return (
-			<main className="flex flex-1 flex-col min-h-0 overflow-hidden bg-spotify-charcoal">
-			<div className="relative h-[220px] min-h-[220px] bg-gradient-to-b from-indigo-900/60 via-spotify-charcoal to-spotify-charcoal sm:h-[260px] sm:min-h-[260px] md:h-[300px] md:min-h-[300px] lg:h-[340px] lg:min-h-[340px]">
+		<main className="flex flex-1 flex-col min-h-0 overflow-hidden bg-spotify-charcoal">
+		<div className="relative h-[260px] min-h-[260px] sm:h-[300px] sm:min-h-[300px] md:h-[360px] md:min-h-[360px] lg:h-[400px] lg:min-h-[400px] overflow-hidden">
+			{/* Фоновое изображение */}
+			<img
+				src="/library-header-bg.png"
+				alt=""
+				className="absolute inset-0 h-full w-full object-cover object-top"
+			/>
+			{/* Тёмный градиент поверх фото */}
+			<div className="absolute inset-0 bg-gradient-to-b from-black/40 via-black/55 to-spotify-charcoal" />
+
+			<div className="relative z-10">
 				<Topbar />
-				<div className="absolute bottom-0 left-0 right-0 px-4 pb-5 sm:px-5 md:px-6 md:pb-6">
-					<h1 className="mb-4 text-2xl font-bold text-white sm:text-3xl md:mb-5 md:text-4xl">
-						Your Library
-					</h1>
+			</div>
+
+			<div className="absolute bottom-0 left-0 right-0 z-10 px-4 pb-5 sm:px-5 md:px-6 md:pb-6">
+				<h1 className="mb-4 text-2xl font-bold text-white sm:text-3xl md:mb-5 md:text-4xl">
+					Your Library
+				</h1>
 				<div className="flex flex-wrap gap-2">
             {tabs.map((tab) => (
               <button
