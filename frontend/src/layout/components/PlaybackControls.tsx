@@ -12,8 +12,10 @@ import {
 	Repeat,
 	Repeat1,
 	Shuffle,
+	Plus,
 } from "lucide-react";
 import { useEffect, useState } from "react";
+import AddToPlaylistModal from "@/components/ui/AddToPlayListModal";
 
 const formatTime = (seconds: number) => {
 	if (!isFinite(seconds) || seconds < 0) return "0:00";
@@ -43,6 +45,8 @@ export const PlaybackControls = () => {
 
 	const [isShuffled, setIsShuffled] = useState(false);
 	const [repeatMode, setRepeatMode] = useState<"off" | "all" | "one">("off");
+
+	const [isModalOpen, setIsModalOpen] = useState(false);
 
 	useEffect(() => {
 		const audio = document.querySelector("audio");
@@ -105,6 +109,24 @@ export const PlaybackControls = () => {
 						{currentSong.artist}
 					</button>
 				</div>
+											{/* Кнопка Add to Playlist */}
+					<Button
+						variant="ghost"
+						size="icon"
+						onClick={() => setIsModalOpen(true)}
+						className="h-6 w-6 text-spotify-text-muted hover:text-white ml-2"
+					>
+						<Plus className="h-4 w-4" />
+					</Button>
+
+					{/* Модалка */}
+					{currentSong && (
+						<AddToPlaylistModal
+							trackId={currentSong.id}
+							isOpen={isModalOpen}
+							onClose={() => setIsModalOpen(false)}
+						/>
+					)}
 			</div>
 
 			{/* Player Controls - центр как в Spotify */}

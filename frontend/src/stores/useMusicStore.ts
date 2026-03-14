@@ -79,6 +79,8 @@ interface MusicStore {
 	fetchMyPlaylists: () => Promise<Playlist[]>;
 	fetchPlaylistById: (id: string) => Promise<Playlist | null>;
 	addTrackToPlaylist: (playlistId: string, trackId: string) => Promise<void>;
+	searchPlaylists: (query: string) => Promise<Playlist[]>;
+	getPlaylistsForModal: (searchQuery?: string) => Promise<Playlist[]>; 
 }
 
 export const useMusicStore = create<MusicStore>((set, get) => ({
@@ -280,9 +282,37 @@ export const useMusicStore = create<MusicStore>((set, get) => ({
 
 	addTrackToPlaylist: async (playlistId, trackId) => {
 		try {
-			await axiosInstance.post(`/api/playlists/${playlistId}/tracks`, { track_id: trackId });
+			await axiosInstance.post(`/playlists/${playlistId}/tracks`, { track_id: trackId });
 		} catch (e) {
 			set({ error: extractError(e) });
 		}
 	},
+
+	searchPlaylists: async (query: string): Promise<Playlist[]> => {
+	  set({ isLoading: true, error: null });
+	  	try {
+	  	  const res = await axiosInstance.get("/playlists/me", {
+	  	    params: { search: query }
+	  	  });
+	  	  set({ isLoading: false });
+	    return res.data;
+	  } catch (e) {
+	    set({ error: extractError(e), isLoading: false });
+	    return [];
+	  }
+	},
+
+	getPlaylistsForModal: async (searchQuery?: string): Promise<Playlist[]> => {
+	  set({ isLoading: true, error: null });
+	  try {
+	    const res = await axiosInstance.get("/playlists/me", {
+	      params: searchQuery ? { search: searchQuery } : {},
+	    });
+	    set({ isLoading: false });
+	    return res.data; // просто массив
+	  } catch (e) {
+	    set({ error: extractError(e), isLoading: false });
+	    return [];
+	  }
+	},		
 }));
