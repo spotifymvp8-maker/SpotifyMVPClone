@@ -84,7 +84,9 @@ const FileOrUrlInput = ({
 const AdminPage = () => {
 	const {
 		albums,
+		allSongs,
 		fetchAlbums,
+		fetchAllSongs,
 		createAlbum,
 		createSong,
 		updateAlbum,
@@ -150,9 +152,14 @@ const AdminPage = () => {
 		duration: 0,
 	});
 
-	useEffect(() => {
+	const refreshAll = () => {
 		fetchAlbums();
-	}, [fetchAlbums]);
+		fetchAllSongs();
+	};
+
+	useEffect(() => {
+		refreshAll();
+	}, []);
 
 	const toggleAlbumExpand = (id: string) => {
 		setExpandedAlbums((prev) => {
@@ -203,7 +210,7 @@ const AdminPage = () => {
 			toast.success("Альбом создан!");
 			setIsAlbumDialogOpen(false);
 			setAlbumForm({ title: "", artist: "", image_url: "", imageFile: null, release_year: new Date().getFullYear() });
-			fetchAlbums();
+			refreshAll();
 		} else {
 			toast.error(useMusicStore.getState().error || "Ошибка создания альбома");
 		}
@@ -264,7 +271,7 @@ const AdminPage = () => {
 			toast.success("Трек создан!");
 			setIsSongDialogOpen(false);
 			setSongForm({ title: "", artist: "", album_id: "", image_url: "", imageFile: null, file_url: "", audioFile: null, duration: 0 });
-			fetchAlbums();
+			refreshAll();
 		} else {
 			toast.error(useMusicStore.getState().error || "Ошибка создания трека");
 		}
@@ -316,7 +323,7 @@ const AdminPage = () => {
 			toast.success("Альбом обновлён!");
 			setIsEditAlbumDialogOpen(false);
 			setEditingAlbum(null);
-			fetchAlbums();
+			refreshAll();
 		} else {
 			toast.error(useMusicStore.getState().error || "Ошибка обновления альбома");
 		}
@@ -328,7 +335,7 @@ const AdminPage = () => {
 		if (ok) {
 			toast.success("Альбом удалён");
 			setDeleteConfirm(null);
-			fetchAlbums();
+			refreshAll();
 		} else {
 			toast.error("Ошибка удаления");
 		}
@@ -390,7 +397,7 @@ const AdminPage = () => {
 			toast.success("Трек обновлён!");
 			setIsEditSongDialogOpen(false);
 			setEditingSong(null);
-			fetchAlbums();
+			refreshAll();
 		} else {
 			toast.error(useMusicStore.getState().error || "Ошибка обновления трека");
 		}
@@ -402,7 +409,7 @@ const AdminPage = () => {
 		if (ok) {
 			toast.success("Трек удалён");
 			setDeleteConfirm(null);
-			fetchAlbums();
+			refreshAll();
 		} else {
 			toast.error("Ошибка удаления");
 		}
@@ -452,9 +459,61 @@ const AdminPage = () => {
 						</Button>
 					</div>
 
-					{/* Albums list */}
-					<div>
-						<h2 className="text-xl font-bold mb-4">Альбомы ({albums.length})</h2>
+				{/* All Songs list */}
+				<div>
+					<h2 className="text-xl font-bold mb-4">Все треки ({allSongs.length})</h2>
+					<div className="space-y-2">
+						{allSongs.length === 0 && (
+							<p className="text-zinc-500 text-sm px-1">Треков пока нет</p>
+						)}
+						{allSongs.map((song) => (
+							<div
+								key={song.id}
+								className="flex items-center justify-between py-2 px-3 rounded-lg bg-zinc-800 hover:bg-zinc-700/60 transition-colors"
+							>
+								<div className="flex items-center gap-3 min-w-0">
+									<img
+										src={song.image_url || "/album-placeholder.png"}
+										alt=""
+										className="w-10 h-10 object-cover rounded flex-shrink-0"
+									/>
+									<div className="min-w-0">
+										<p className="font-medium truncate text-white">{song.title}</p>
+										<p className="text-xs text-zinc-400 truncate">
+											{song.artist}
+											{song.album_name ? ` · ${song.album_name}` : " · Без альбома"}
+											{" · "}{song.duration} сек
+										</p>
+									</div>
+								</div>
+								<div className="flex gap-1 flex-shrink-0 ml-2">
+									<Button
+										size="sm"
+										variant="ghost"
+										className="h-8 w-8 p-0 text-zinc-400 hover:text-white"
+										title="Редактировать"
+										onClick={() => openEditSong(song)}
+									>
+										<Pencil className="h-3.5 w-3.5" />
+									</Button>
+									<Button
+										size="sm"
+										variant="ghost"
+										className="h-8 w-8 p-0 text-red-400 hover:bg-red-900/30 hover:text-red-300"
+										title="Удалить"
+										onClick={() => setDeleteConfirm({ type: "song", id: song.id, title: song.title })}
+									>
+										<Trash2 className="h-3.5 w-3.5" />
+									</Button>
+								</div>
+							</div>
+						))}
+					</div>
+				</div>
+
+				{/* Albums list */}
+				<div>
+					<h2 className="text-xl font-bold mb-4">Альбомы ({albums.length})</h2>
 						<div className="space-y-4">
 							{albums.map((album) => (
 								<Card key={album.id} className="bg-zinc-800 border-zinc-700">
