@@ -11,6 +11,7 @@ import { Toaster } from "react-hot-toast";
 import { useAuthStore } from "./stores/useAuthStore";
 import NewPlaylistPage from "./pages/AddPlaylist/AddPlaylistPage";
 import PlaylistEditPage from "./pages/playlistEditPage/PlaylistEditPage";
+import ProjectPresentation from "./pages/presentation/PresentationPage";
 
 function App() {
 	const { isAuthenticated } = useAuthStore();
@@ -54,6 +55,11 @@ function App() {
 					path='/admin'
 					element={isAuthenticated ? <AdminPage /> : <Navigate to='/login' />}
 				/>
+
+				 <Route 
+				 path="/presentation" element={<ProjectPresentation />} 
+				 />
+				 
 			</Routes>
 			<Toaster />
 		</>
