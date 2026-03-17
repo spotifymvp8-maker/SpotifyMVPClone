@@ -14,17 +14,28 @@ from app.schemas import AlbumCreate, AlbumResponse, AlbumUpdate
 router = APIRouter()
 
 
+# Два декоратора — исправление 307-редиректа (см. songs.py за подробностями)
 @router.get("", response_model=list[AlbumResponse])
 @router.get("/", response_model=list[AlbumResponse])
 def get_all_albums(db: Session = Depends(get_db)):
-    """Получить все альбомы."""
+    """
+    Список всех альбомов.
+
+    AlbumResponse включает поле songs (список треков).
+    SQLAlchemy загружает треки лениво через relationship("songs").
+    Для больших данных стоит добавить пагинацию.
+    """
     albums = db.query(Album).all()
     return albums
 
 
 @router.get("/{album_id}", response_model=AlbumResponse)
 def get_album(album_id: UUID, db: Session = Depends(get_db)):
-    """Получить альбом по ID с треками."""
+    """
+    Альбом по ID с вложенными треками.
+
+    Треки подгружаются автоматически через lazy loading (Album.songs relationship).
+    """
     album = db.query(Album).filter(Album.id == album_id).first()
     if not album:
         raise HTTPException(
@@ -41,7 +52,7 @@ def create_album(
     _: UUID = Depends(get_admin_user_id),
     db: Session = Depends(get_db),
 ):
-    """Создать новый альбом (только админ)."""
+    """Создать альбом. Только для администраторов."""
     album = Album(**album_data.model_dump())
     db.add(album)
     db.commit()
@@ -56,18 +67,30 @@ def update_album(
     _: UUID = Depends(get_admin_user_id),
     db: Session = Depends(get_db),
 ):
-    """Обновить альбом."""
+    """
+    Обновить альбом. Только для администраторов.
+
+    Важно: при изменении title альбома нужно обновить album_name во всех треках.
+    Это сделано здесь — денормализованное поле синхронизируется вручную.
+    """
     album = db.query(Album).filter(Album.id == album_id).first()
     if not album:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Album not found"
         )
-    
+
     update_data = album_data.model_dump(exclude_unset=True)
+
+    # Если меняется название альбома — обновляем денормализованное поле album_name во всех треках
+    if "title" in update_data:
+        db.query(Track).filter(Track.album_id == album_id).update(
+            {"album_name": update_data["title"]}
+        )
+
     for field, value in update_data.items():
         setattr(album, field, value)
-    
+
     db.commit()
     db.refresh(album)
     return album
@@ -79,14 +102,19 @@ def delete_album(
     _: UUID = Depends(get_admin_user_id),
     db: Session = Depends(get_db),
 ):
-    """Удалить альбом."""
+    """
+    Удалить альбом. Только для администраторов.
+
+    Треки НЕ удаляются — album_id в треках становится NULL (SET NULL в FK).
+    Треки остаются как синглы, не исчезают из плейлистов пользователей.
+    """
     album = db.query(Album).filter(Album.id == album_id).first()
     if not album:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Album not found"
         )
-    
+
     db.delete(album)
     db.commit()
     return {"message": "Album deleted successfully"}

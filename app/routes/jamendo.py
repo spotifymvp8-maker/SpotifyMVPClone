@@ -9,6 +9,8 @@ GET  /api/jamendo/search  — поиск треков на Jamendo
 POST /api/jamendo/import  — сохранить трек из Jamendo в локальную БД
 """
 
+import uuid as uuid_module
+from pathlib import Path
 from uuid import UUID
 
 import httpx
@@ -20,6 +22,8 @@ from app.config import JAMENDO_CLIENT_ID
 from app.database import get_db
 from app.dependencies import get_admin_user_id
 from app.models.track import Track
+
+IMAGES_DIR = Path(__file__).resolve().parent.parent.parent / "media" / "images"
 
 router = APIRouter()
 
@@ -47,6 +51,7 @@ class JamendoImportRequest(BaseModel):
     jamendo_id: str
     title: str
     artist: str
+    album_name: str = ""
     duration: int
     audio_url: str
     image_url: str
@@ -146,6 +151,24 @@ def search_jamendo(
     return _fetch_jamendo_tracks(text_params)
 
 
+def _download_image(url: str) -> str | None:
+    """Скачать обложку по URL и сохранить в media/images/. Вернуть локальный URL."""
+    if not url:
+        return None
+    try:
+        IMAGES_DIR.mkdir(parents=True, exist_ok=True)
+        with httpx.Client(timeout=10.0) as client:
+            resp = client.get(url, follow_redirects=True)
+            resp.raise_for_status()
+        content_type = resp.headers.get("content-type", "image/jpeg").lower()
+        ext = ".png" if "png" in content_type else ".webp" if "webp" in content_type else ".jpg"
+        filename = f"{uuid_module.uuid4().hex}{ext}"
+        (IMAGES_DIR / filename).write_bytes(resp.content)
+        return f"/media/images/{filename}"
+    except Exception:
+        return None
+
+
 @router.post("/import", status_code=status.HTTP_201_CREATED)
 def import_jamendo_track(
     body: JamendoImportRequest,
@@ -175,12 +198,15 @@ def import_jamendo_track(
             "already_exists": True,
         }
 
+    local_image_url = _download_image(body.image_url) if body.image_url else None
+
     track = Track(
         title=body.title,
         artist=body.artist,
+        album_name=body.album_name or body.title,
         duration=body.duration,
         file_url=body.audio_url,
-        image_url=body.image_url or None,
+        image_url=local_image_url or body.image_url or None,
         album_id=body.album_id,
     )
     db.add(track)

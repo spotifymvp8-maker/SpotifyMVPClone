@@ -12,6 +12,8 @@
 | `DEFENSE_SPEECH.md` | Речь для защиты (Russian) |
 | `DEFENSE_QA.md` | 100 вопросов и ответов (Russian) |
 | `ARCHITECTURE_DIAGRAMS.md` | Сводное описание всех диаграмм |
+| `WORK_LOG_13_03_2026.md` | Отчёт о работе: поиск, библиотека, кнопки ♥ |
+| `WORK_LOG_16_03_2026.md` | Отчёт о работе: Shuffle, Repeat, Jamendo API, диаграммы |
 
 ---
 

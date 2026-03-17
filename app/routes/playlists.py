@@ -17,7 +17,13 @@ router = APIRouter()
 
 
 def _require_owner(playlist: Playlist, user_id: UUID) -> None:
-    """Проверить, что пользователь — владелец плейлиста."""
+    """
+    Проверяет, что пользователь — владелец плейлиста.
+    Вызывается перед любой мутирующей операцией (PUT, DELETE, добавление/удаление треков).
+
+    Выбрасывает 403 Forbidden, если user_id != playlist.owner_id.
+    Это предотвращает изменение чужих плейлистов.
+    """
     if playlist.owner_id != user_id:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
@@ -33,14 +39,25 @@ def playlist_health():
 
 @router.get("/", response_model=list[PlaylistResponse])
 def get_all_playlists(
-    user_id: UUID | None = Depends(get_optional_user_id),
+    user_id: UUID | None = Depends(get_optional_user_id),  # None если не авторизован
     db: Session = Depends(get_db),
 ):
-    """Получить плейлисты: публичные + свои (если авторизован)."""
+    """
+    Список плейлистов с учётом авторизации.
+
+    Авторизованный пользователь видит:
+        - все публичные плейлисты (is_public=True)
+        - свои приватные плейлисты (owner_id == user_id)
+
+    Анонимный пользователь видит:
+        - только публичные плейлисты
+    """
     query = db.query(Playlist)
     if user_id is None:
+        # Аноним — только публичные
         query = query.filter(Playlist.is_public == True)
     else:
+        # Авторизованный — публичные ИЛИ свои
         query = query.filter(
             or_(Playlist.is_public == True, Playlist.owner_id == user_id)
         )
@@ -49,10 +66,10 @@ def get_all_playlists(
 
 @router.get("/me", response_model=list[PlaylistResponse])
 def get_my_playlists(
-    user_id: UUID = Depends(get_current_user_id),
+    user_id: UUID = Depends(get_current_user_id),  # обязательная авторизация
     db: Session = Depends(get_db),
 ):
-    """Получить плейлисты текущего пользователя."""
+    """Плейлисты текущего пользователя (все: публичные и приватные)."""
     playlists = db.query(Playlist).filter(Playlist.owner_id == user_id).all()
     return playlists
 
@@ -63,18 +80,20 @@ def get_playlist(
     user_id: UUID | None = Depends(get_optional_user_id),
     db: Session = Depends(get_db),
 ):
-    """Получить плейлист по ID с треками (публичный или свой)."""
+    """
+    Плейлист по ID с треками.
+
+    Приватный плейлист возвращает 404 (не 403!) если запрашивает не владелец.
+    Возврат 404 вместо 403 — security best practice: не раскрываем факт существования.
+    """
     playlist = db.query(Playlist).filter(Playlist.id == playlist_id).first()
     if not playlist:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Playlist not found",
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Playlist not found")
+
+    # Приватный плейлист недоступен анонимам и чужим пользователям
     if not playlist.is_public and (user_id is None or playlist.owner_id != user_id):
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Playlist not found",
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Playlist not found")
+
     return playlist
 
 
@@ -84,9 +103,14 @@ def create_playlist(
     user_id: UUID = Depends(get_current_user_id),
     db: Session = Depends(get_db),
 ):
-    """Создать новый плейлист (владелец — текущий пользователь)."""
+    """
+    Создать плейлист.
+
+    owner_id берётся из JWT токена (не из тела запроса).
+    Это гарантирует, что пользователь не может создать плейлист от имени другого.
+    """
     playlist = Playlist(
-        owner_id=user_id,
+        owner_id=user_id,          # владелец = текущий пользователь из токена
         title=playlist_data.title,
         is_public=playlist_data.is_public,
     )
@@ -103,14 +127,12 @@ def update_playlist(
     user_id: UUID = Depends(get_current_user_id),
     db: Session = Depends(get_db),
 ):
-    """Обновить плейлист (только владелец)."""
+    """Обновить плейлист. Только владелец."""
     playlist = db.query(Playlist).filter(Playlist.id == playlist_id).first()
     if not playlist:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Playlist not found",
-        )
-    _require_owner(playlist, user_id)
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Playlist not found")
+
+    _require_owner(playlist, user_id)  # проверяем права ПЕРЕД изменением
 
     update_data = playlist_data.model_dump(exclude_unset=True)
     for field, value in update_data.items():
@@ -127,13 +149,16 @@ def delete_playlist(
     user_id: UUID = Depends(get_current_user_id),
     db: Session = Depends(get_db),
 ):
-    """Удалить плейлист (только владелец)."""
+    """
+    Удалить плейлист. Только владелец.
+
+    Каскадно удалятся все записи PlaylistTrack (треки из плейлиста).
+    Сами треки (в таблице tracks) не удаляются.
+    """
     playlist = db.query(Playlist).filter(Playlist.id == playlist_id).first()
     if not playlist:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Playlist not found",
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Playlist not found")
+
     _require_owner(playlist, user_id)
 
     db.delete(playlist)
@@ -148,22 +173,25 @@ def add_track_to_playlist(
     user_id: UUID = Depends(get_current_user_id),
     db: Session = Depends(get_db),
 ):
-    """Добавить трек в плейлист (только владелец)."""
+    """
+    Добавить трек в плейлист. Только владелец.
+
+    Если position не передан — трек добавляется в конец.
+    position = текущее количество треков в плейлисте (0-based).
+
+    UniqueConstraint на (playlist_id, position) в БД предотвращает коллизии позиций.
+    """
     playlist = db.query(Playlist).filter(Playlist.id == playlist_id).first()
     if not playlist:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Playlist not found",
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Playlist not found")
+
     _require_owner(playlist, user_id)
 
     track = db.query(Track).filter(Track.id == track_data.track_id).first()
     if not track:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Track not found",
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Track not found")
 
+    # Если position не указан — добавляем в конец (позиция = количество текущих треков)
     max_position = db.query(PlaylistTrack.position).filter(
         PlaylistTrack.playlist_id == playlist_id
     ).count()
@@ -186,15 +214,19 @@ def remove_track_from_playlist(
     user_id: UUID = Depends(get_current_user_id),
     db: Session = Depends(get_db),
 ):
-    """Удалить трек из плейлиста (только владелец)."""
+    """
+    Удалить трек из плейлиста. Только владелец.
+
+    Удаляется только запись PlaylistTrack (связь).
+    Сам трек в таблице tracks остаётся нетронутым.
+    """
     playlist = db.query(Playlist).filter(Playlist.id == playlist_id).first()
     if not playlist:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Playlist not found",
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Playlist not found")
+
     _require_owner(playlist, user_id)
 
+    # Ищем конкретную связь в таблице playlist_tracks
     playlist_track = db.query(PlaylistTrack).filter(
         PlaylistTrack.playlist_id == playlist_id,
         PlaylistTrack.track_id == track_id,

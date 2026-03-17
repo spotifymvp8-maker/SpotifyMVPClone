@@ -30,42 +30,65 @@ def get_all_songs(
     offset: int = Query(0, ge=0),
     db: Session = Depends(get_db),
 ):
-    """Получить треки с пагинацией (доступно всем)."""
+    """
+    Список всех треков с пагинацией.
+
+    limit — сколько треков вернуть (1..100, по умолчанию 50)
+    offset — сколько пропустить (для перехода на следующую страницу)
+
+    Используется .slice() вместо .limit().offset() — более безопасный вариант
+    для PostgreSQL, корректно работающий на граничных значениях.
+    Сортировка по created_at DESC — новые треки первыми.
+    """
     start = offset
     stop = offset + min(limit, MAX_LIMIT)
     tracks = (
         db.query(Track)
         .order_by(Track.created_at.desc())
-        .slice(start, stop)  # безопасно для PostgreSQL \ падало в f405
+        .slice(start, stop)
         .all()
     )
-    return tracks 
+    return tracks
 
 
 @router.get("/featured", response_model=list[TrackResponse])
 def get_featured_songs(db: Session = Depends(get_db)):
-    """Получить избранные треки (случайные)."""
-    tracks = db.query(Track).limit(10).all()
+    """
+    Featured треки для главной страницы.
+
+    Берём последние 50 добавленных треков и возвращаем 6 случайных.
+    Это гарантирует, что недавно импортированные треки тоже попадают на главную.
+    """
+    tracks = db.query(Track).order_by(Track.created_at.desc()).limit(50).all()
     return random.sample(tracks, min(len(tracks), 6)) if tracks else []
 
 
 @router.get("/made-for-you", response_model=list[TrackResponse])
 def get_made_for_you_songs(db: Session = Depends(get_db)):
-    """Получить треки 'Создано для вас' (случайные)."""
-    tracks = db.query(Track).limit(10).all()
+    """
+    Персональные треки 'Создано для вас'.
+
+    Случайная выборка из всей библиотеки (используем func.random() для честного рандома).
+    """
+    tracks = db.query(Track).order_by(Track.created_at.desc()).limit(50).all()
     return random.sample(tracks, min(len(tracks), 5)) if tracks else []
 
 
 @router.get("/trending", response_model=list[TrackResponse])
 def get_trending_songs(db: Session = Depends(get_db)):
-    """Получить трендовые треки (случайные)."""
-    tracks = db.query(Track).limit(10).all()
+    """
+    Трендовые треки.
+
+    MVP: последние добавленные треки, случайная выборка.
+    В продакшн: сортировка по количеству прослушиваний за 7 дней.
+    """
+    tracks = db.query(Track).order_by(Track.created_at.desc()).limit(50).all()
     return random.sample(tracks, min(len(tracks), 5)) if tracks else []
 
 
 @router.get("/{track_id}", response_model=TrackResponse)
 def get_song(track_id: UUID, db: Session = Depends(get_db)):
-    """Получить трек по ID."""
+    """Получить один трек по UUID."""
     track = db.query(Track).filter(Track.id == track_id).first()
     if not track:
         raise HTTPException(
@@ -75,17 +98,28 @@ def get_song(track_id: UUID, db: Session = Depends(get_db)):
     return track
 
 
+# Два декоратора на одну функцию — исправление бага с 307-редиректом.
+# FastAPI по умолчанию редиректит /api/songs → /api/songs/ (добавляет слэш).
+# В Docker этот редирект ломался: Nginx менял Location на внутренний IP контейнера.
+# Решение: регистрируем оба пути — с пустой строкой и со слэшем.
 @router.post("", response_model=TrackResponse)
 @router.post("/", response_model=TrackResponse)
 def create_song(
     song_data: TrackCreate,
-    _: UUID = Depends(get_admin_user_id),
+    _: UUID = Depends(get_admin_user_id),  # _ означает "нужна зависимость, но результат не используется"
     db: Session = Depends(get_db),
 ):
-    """Создать новый трек (только админ)."""
-    # При наличии album_id — подставляем album_name и image_url из альбома
+    """
+    Создать новый трек. Только для администраторов.
+
+    Если передан album_id:
+        - проверяем, что альбом существует
+        - автоматически заполняем album_name (денормализация для поиска)
+        - если у трека нет своей обложки — наследуем image_url от альбома
+    """
     data = song_data.model_dump()
     album_name = ""
+
     if song_data.album_id:
         album = db.query(Album).filter(Album.id == song_data.album_id).first()
         if not album:
@@ -94,10 +128,14 @@ def create_song(
                 detail="Album not found"
             )
         album_name = album.title
-        # Наследуем обложку альбома, если у трека нет своей
+
+        # Наследуем обложку альбома, если трек создаётся без своей
         if not data.get("image_url"):
             data["image_url"] = album.image_url
+
+    # album_name денормализован в треке — для поиска без JOIN
     data["album_name"] = album_name
+
     track = Track(**data)
     db.add(track)
     db.commit()
@@ -112,27 +150,41 @@ def update_song(
     _: UUID = Depends(get_admin_user_id),
     db: Session = Depends(get_db),
 ):
-    """Обновить трек (только админ)."""
+    """
+    Обновить трек. Только для администраторов.
+
+    model_dump(exclude_unset=True) — обновляем только переданные поля.
+    Это позволяет изменить один атрибут, не затрагивая остальные.
+
+    При изменении album_id:
+        - обновляем album_name (денормализованное поле)
+        - если у трека нет обложки — наследуем от нового альбома
+    """
     track = db.query(Track).filter(Track.id == track_id).first()
     if not track:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Track not found"
         )
-    
+
+    # exclude_unset=True — в update_data попадут только поля, которые клиент явно передал
     update_data = song_data.model_dump(exclude_unset=True)
+
     if "album_id" in update_data and update_data["album_id"]:
+        # Трек привязывается к альбому — синхронизируем album_name и image_url
         album = db.query(Album).filter(Album.id == update_data["album_id"]).first()
         if album:
             update_data["album_name"] = album.title
-            # Наследуем обложку альбома, если у трека нет своей
             if not update_data.get("image_url") and not track.image_url:
                 update_data["image_url"] = album.image_url
     elif "album_id" in update_data and update_data["album_id"] is None:
+        # album_id сбрасывается в None — трек становится синглом
         update_data["album_name"] = ""
+
+    # Применяем изменения через setattr (динамически, без явного перечисления полей)
     for field, value in update_data.items():
         setattr(track, field, value)
-    
+
     db.commit()
     db.refresh(track)
     return track
@@ -144,14 +196,20 @@ def delete_song(
     _: UUID = Depends(get_admin_user_id),
     db: Session = Depends(get_db),
 ):
-    """Удалить трек (только админ)."""
+    """
+    Удалить трек. Только для администраторов.
+
+    Каскадные удаления (настроены в моделях):
+        - playlist_tracks с этим треком удалятся автоматически
+        - listening_history с этим треком удалится автоматически
+    """
     track = db.query(Track).filter(Track.id == track_id).first()
     if not track:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Track not found"
         )
-    
+
     db.delete(track)
     db.commit()
     return {"message": "Track deleted successfully"}

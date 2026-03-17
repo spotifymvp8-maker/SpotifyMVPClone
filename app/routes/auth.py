@@ -39,14 +39,25 @@ def auth_health():
 
 @router.post("/register", response_model=Token)
 def register(user_data: UserCreate, db: Session = Depends(get_db)):
-    """Регистрация: создаёт AuthUser и UserProfile, возвращает access + refresh токены."""
-    # Проверка уникальности email и username
+    """
+    Регистрация нового пользователя.
+
+    Шаги:
+        1. Проверяем уникальность email и username
+        2. Хешируем пароль (bcrypt — медленный, со встроенной солью)
+        3. Создаём запись AuthUser (только учётные данные)
+        4. Создаём UserProfile через _ensure_profile (публичный профиль)
+        5. Генерируем и возвращаем access + refresh токены
+    """
+    # Шаг 1: проверка уникальности email
     existing_user = db.query(AuthUser).filter(AuthUser.email == user_data.email).first()
     if existing_user:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Email already registered",
         )
+
+    # Шаг 1: проверка уникальности username
     existing_profile = db.query(UserProfile).filter(
         UserProfile.username == user_data.username
     ).first()
@@ -55,8 +66,12 @@ def register(user_data: UserCreate, db: Session = Depends(get_db)):
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Username already taken",
         )
-    # Создаём запись в auth_users (пароль хранится только в виде хеша)
+
+    # Шаг 2: хешируем пароль — plain text НИКОГДА не сохраняем
     hashed_password = get_password_hash(user_data.password)
+
+    # Шаг 3: создаём запись в auth_users
+    # initial_username сохраняется для последующего создания профиля
     user = AuthUser(
         email=user_data.email,
         password_hash=hashed_password,
@@ -64,18 +79,20 @@ def register(user_data: UserCreate, db: Session = Depends(get_db)):
     )
     db.add(user)
     db.commit()
-    db.refresh(user)
+    db.refresh(user)  # db.refresh загружает обратно из БД (получаем auto-generated id, created_at)
 
-    # UserProfile создаётся сразу (username из initial_username)
+    # Шаг 4: создаём UserProfile (ленивое создание через _ensure_profile)
     from app.routes.users import _ensure_profile
-
     profile = _ensure_profile(user.id, db)
-    # JWT: sub = user_id, используется в get_current_user_id
+
+    # Шаг 5: генерируем JWT токены
+    # sub = user.id (не email!) — ID не меняется, email может поменяться
     access_token = create_access_token(
         data={"sub": str(user.id), "email": user.email},
         expires_delta=timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES),
     )
     refresh_token = create_refresh_token(data={"sub": str(user.id)})
+
     return {
         "access_token": access_token,
         "refresh_token": refresh_token,
@@ -90,22 +107,36 @@ def register(user_data: UserCreate, db: Session = Depends(get_db)):
 
 @router.post("/login", response_model=TokenWithUser)
 def login(login_data: UserLogin, db: Session = Depends(get_db)):
-    """Вход пользователя."""
+    """
+    Вход пользователя.
+
+    Шаги:
+        1. Ищем пользователя по email
+        2. Проверяем пароль через bcrypt.checkpw (не хранит пароль, только сравнивает хеши)
+        3. Генерируем и возвращаем токены + данные пользователя
+    """
+    # Шаг 1: ищем по email (используем индекс idx_auth_users_email)
     user = db.query(AuthUser).filter(AuthUser.email == login_data.email).first()
+
+    # Шаг 2: проверяем пароль.
+    # Важно: "not user" и "неверный пароль" дают одинаковое сообщение об ошибке.
+    # Это предотвращает user enumeration — злоумышленник не узнает, зарегистрирован ли email.
     if not user or not verify_password(login_data.password, user.password_hash):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid email or password"
         )
-    
-    from app.routes.users import _ensure_profile
 
+    from app.routes.users import _ensure_profile
     profile = _ensure_profile(user.id, db)
+
+    # Шаг 3: генерируем токены
     access_token = create_access_token(
         data={"sub": str(user.id), "email": user.email},
         expires_delta=timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES),
     )
     refresh_token = create_refresh_token(data={"sub": str(user.id)})
+
     return {
         "access_token": access_token,
         "refresh_token": refresh_token,
@@ -120,28 +151,47 @@ def login(login_data: UserLogin, db: Session = Depends(get_db)):
 
 @router.post("/logout")
 def logout():
-    """Выход пользователя."""
-    # В production здесь нужно инвалидировать токен
+    """
+    Выход пользователя.
+
+    В MVP токен просто "забывается" на клиенте — backend не инвалидирует его.
+    В production здесь нужно добавить токен в Redis-blacklist,
+    чтобы нельзя было им воспользоваться до истечения срока жизни.
+    """
     return {"message": "Logged out successfully"}
 
 
 @router.post("/refresh", response_model=Token)
 def refresh_token(refresh_data: dict, db: Session = Depends(get_db)):
-    """Обновление access_token по refresh_token. Вызывается frontend при 401."""
+    """
+    Обновление access_token по refresh_token.
+
+    Вызывается frontend автоматически при получении 401 на любой запрос.
+    Позволяет не требовать повторного логина каждые 30 минут.
+
+    Шаги:
+        1. Достаём refresh_token из тела запроса
+        2. Декодируем и проверяем, что это именно refresh (не access)
+        3. Находим пользователя в БД
+        4. Возвращаем новую пару токенов
+    """
     refresh_token = refresh_data.get("refresh_token")
     if not refresh_token:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Refresh token required"
         )
-    
+
     payload = decode_token(refresh_token)
+
+    # Важная проверка: нельзя использовать access token вместо refresh.
+    # В payload refresh token есть поле type="refresh".
     if not payload or payload.get("type") != "refresh":
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid refresh token"
         )
-    
+
     user_id = payload.get("sub")
     user = db.query(AuthUser).filter(AuthUser.id == user_id).first()
     if not user:
@@ -149,14 +199,14 @@ def refresh_token(refresh_data: dict, db: Session = Depends(get_db)):
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="User not found"
         )
-    
-    # Create new tokens
+
+    # Генерируем новую пару токенов (refresh token rotation)
     new_access_token = create_access_token(
         data={"sub": str(user.id), "email": user.email},
         expires_delta=timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     )
     new_refresh_token = create_refresh_token(data={"sub": str(user.id)})
-    
+
     return {"access_token": new_access_token, "refresh_token": new_refresh_token}
 
 
@@ -165,16 +215,21 @@ def get_current_user(
     credentials: HTTPAuthorizationCredentials = Depends(security),
     db: Session = Depends(get_db)
 ):
-    """Получение текущего пользователя."""
+    """
+    Возвращает данные текущего авторизованного пользователя.
+
+    Используется frontend при загрузке приложения для восстановления сессии:
+    если токен есть и валиден — пользователь считается залогиненным.
+    """
     token = credentials.credentials
     payload = decode_token(token)
-    
+
     if not payload:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid token"
         )
-    
+
     user_id = payload.get("sub")
     user = db.query(AuthUser).filter(AuthUser.id == user_id).first()
     if not user:
@@ -182,9 +237,10 @@ def get_current_user(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="User not found",
         )
-    from app.routes.users import _ensure_profile
 
+    from app.routes.users import _ensure_profile
     profile = _ensure_profile(UUID(user_id), db)
+
     return {
         "id": user.id,
         "email": user.email,
