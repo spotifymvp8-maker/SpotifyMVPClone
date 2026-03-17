@@ -110,21 +110,21 @@ export const JamendoImportModal = ({ isOpen, onClose, onImported }: Props) => {
 						<Music className="h-5 w-5 text-green-400" />
 						Импорт из Jamendo
 					</DialogTitle>
-					<p className="text-zinc-400 text-sm mt-1">
-						Бесплатная музыка под Creative Commons лицензией. Треки стримятся напрямую с серверов Jamendo.
-					</p>
+				<p className="text-zinc-400 text-sm mt-1">
+					Бесплатная музыка под Creative Commons. Ищи по имени артиста или названию трека, либо выбери жанр.
+				</p>
 				</DialogHeader>
 
 				{/* Search controls */}
 				<div className="space-y-3 flex-shrink-0">
 					<div className="flex gap-2">
-						<Input
-							placeholder="Поиск: название, артист..."
-							value={query}
-							onChange={(e) => setQuery(e.target.value)}
-							onKeyDown={(e) => e.key === "Enter" && handleSearch()}
-							className="bg-zinc-800 border-zinc-600 text-white placeholder:text-zinc-500"
-						/>
+					<Input
+						placeholder="Имя артиста или название трека..."
+						value={query}
+						onChange={(e) => setQuery(e.target.value)}
+						onKeyDown={(e) => e.key === "Enter" && handleSearch()}
+						className="bg-zinc-800 border-zinc-600 text-white placeholder:text-zinc-500"
+					/>
 						<Button
 							onClick={handleSearch}
 							disabled={loading}
@@ -229,7 +229,10 @@ export const JamendoImportModal = ({ isOpen, onClose, onImported }: Props) => {
 					{!loading && results.length === 0 && (
 						<div className="flex flex-col items-center justify-center py-12 text-zinc-500">
 							<Music className="h-12 w-12 mb-3 opacity-30" />
-							<p className="text-sm">Введите запрос или выберите жанр для поиска</p>
+							<p className="text-sm text-center">Введите имя артиста или название трека</p>
+							<p className="text-xs text-center mt-1 text-zinc-600">
+								Используй английское написание — Jamendo в основном англоязычный каталог
+							</p>
 						</div>
 					)}
 				</ScrollArea>

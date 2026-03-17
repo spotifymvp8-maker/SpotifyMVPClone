@@ -57,43 +57,8 @@ class JamendoImportRequest(BaseModel):
 # Эндпоинты
 # ──────────────────────────────────────────────
 
-@router.get("/search", response_model=list[JamendoTrack])
-def search_jamendo(
-    q: str = Query("", description="Поисковый запрос (название, артист, тег)"),
-    tags: str = Query("", description="Теги жанров через пробел: rock pop electronic"),
-    limit: int = Query(20, ge=1, le=50),
-    offset: int = Query(0, ge=0),
-):
-    """
-    Поиск треков на Jamendo.
-
-    Параметры:
-    - q: свободный текстовый поиск (название трека, артист, альбом)
-    - tags: теги жанров через пробел (rock, pop, electronic, jazz, classical и т.д.)
-    - limit: количество результатов (1–50)
-    - offset: смещение для пагинации
-
-    Возвращает треки с прямыми ссылками для стриминга.
-    """
-    if not q and not tags:
-        q = "popular"
-
-    params = {
-        "client_id": JAMENDO_CLIENT_ID,
-        "format": "json",
-        "limit": limit,
-        "offset": offset,
-        "audioformat": "mp31",   # 96kbps mp3 — лёгкий стриминг
-        "imagesize": 300,
-        "order": "popularity_month",
-        "type": "albumtrack single",
-    }
-
-    if q:
-        params["search"] = q
-    if tags:
-        params["fuzzytags"] = tags.strip()
-
+def _fetch_jamendo_tracks(params: dict) -> list[JamendoTrack]:
+    """Вспомогательная функция: делает запрос к Jamendo API и парсит результаты."""
     try:
         with httpx.Client(timeout=10.0) as client:
             resp = client.get(f"{JAMENDO_API_BASE}/tracks/", params=params)
@@ -109,9 +74,7 @@ def search_jamendo(
             detail=f"Ошибка запроса к Jamendo: {e}",
         )
 
-    data = resp.json()
-    results = data.get("results", [])
-
+    results = resp.json().get("results", [])
     tracks = []
     for t in results:
         audio_url = t.get("audio", "")
@@ -127,8 +90,60 @@ def search_jamendo(
             image_url=t.get("album_image", t.get("image", "")),
             license_url=t.get("license_ccurl", ""),
         ))
-
     return tracks
+
+
+@router.get("/search", response_model=list[JamendoTrack])
+def search_jamendo(
+    q: str = Query("", description="Поисковый запрос (название трека или имя артиста)"),
+    tags: str = Query("", description="Теги жанров через пробел: rock pop electronic"),
+    limit: int = Query(20, ge=1, le=50),
+    offset: int = Query(0, ge=0),
+):
+    """
+    Поиск треков на Jamendo.
+
+    Стратегия поиска по запросу q:
+    1. Сначала ищем по имени артиста (artist_name) — точный поиск
+    2. Если нашли — отлично. Если нет — ищем по свободному тексту (search),
+       который охватывает название трека, альбома, теги.
+
+    Параметры:
+    - q: имя артиста ИЛИ название трека
+    - tags: теги жанров (rock, pop, electronic, jazz, classical и т.д.)
+    - limit: количество результатов (1–50)
+    """
+    base_params = {
+        "client_id": JAMENDO_CLIENT_ID,
+        "format": "json",
+        "limit": limit,
+        "offset": offset,
+        "audioformat": "mp31",
+        "imagesize": 300,
+        "order": "popularity_month",
+        "type": "albumtrack single",
+    }
+
+    if tags:
+        base_params["fuzzytags"] = tags.strip()
+
+    # Если запрос не задан — возвращаем популярные треки
+    if not q and not tags:
+        return _fetch_jamendo_tracks(base_params)
+
+    if not q:
+        return _fetch_jamendo_tracks(base_params)
+
+    # Шаг 1: поиск по имени артиста
+    artist_params = {**base_params, "artist_name": q.strip()}
+    tracks = _fetch_jamendo_tracks(artist_params)
+
+    if tracks:
+        return tracks
+
+    # Шаг 2: фолбэк — свободный текстовый поиск (трек, альбом, теги)
+    text_params = {**base_params, "search": q.strip()}
+    return _fetch_jamendo_tracks(text_params)
 
 
 @router.post("/import", status_code=status.HTTP_201_CREATED)
