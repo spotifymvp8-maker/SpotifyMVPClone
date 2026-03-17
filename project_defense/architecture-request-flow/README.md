@@ -1,6 +1,6 @@
 # Architecture Request Flow
 
-**Изображение:** `architecture-request-flow.png`
+**Изображения:** `architecture-request-flow.png` (оригинал) | `architecture-request-flow-detailed.png` (подробная версия)
 
 ---
 

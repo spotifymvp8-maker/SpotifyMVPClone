@@ -1,6 +1,6 @@
 # Backend Request Flow
 
-**Изображение:** `backend-request-flow.png`
+**Изображения:** `backend-request-flow.png` (оригинал) | `backend-request-flow-detailed.png` (подробная версия)
 
 ---
 

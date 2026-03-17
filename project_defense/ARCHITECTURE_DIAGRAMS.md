@@ -146,7 +146,26 @@ All routers mounted in `main.py`:
 | `/api/recommendations` | recommendations | personalized recommendations |
 | `/api/upload` | upload | image/audio upload |
 | `/api/seed` | seed | test data |
+| `/api/jamendo` | jamendo | поиск и импорт треков из Jamendo API |
 | `/ws` | websocket | real-time chat |
+
+---
+
+## Diagram 8: Jamendo API Integration
+
+**Папка:** `jamendo-architecture/`  
+**Файл:** `jamendo-api-flow.png`
+
+Интеграция с внешним API Jamendo для поиска и импорта бесплатных треков (Creative Commons):
+
+- **Admin Panel** → поиск по артисту/названию, жанровые теги, предпрослушивание, кнопка «Добавить»
+- **Frontend** → `JamendoImportModal`, запросы к `/api/jamendo/search` и `/api/jamendo/import`
+- **Backend** → фильтрация уже импортированных (по `trackid`), скачивание обложек, импорт в БД
+- **Jamendo API** → `api.jamendo.com` — поиск треков
+- **Jamendo CDN** → прямой стриминг аудио в браузер (без скачивания на сервер)
+- **PostgreSQL** → таблица `tracks` с `file_url` (ссылка на Jamendo)
+
+Подробнее: `jamendo-architecture/README.md`
 
 ---
 

@@ -1,6 +1,6 @@
 # Backend Database Layer
 
-**Изображение:** `backend-database-layer.png`
+**Изображения:** `backend-database-layer.png` (оригинал) | `backend-database-layer-detailed.png` (подробная версия)
 
 ---
 

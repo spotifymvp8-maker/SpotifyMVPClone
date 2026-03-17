@@ -1,6 +1,6 @@
 # Backend Auth Flow
 
-**Изображение:** `backend-auth-flow.png`
+**Изображения:** `backend-auth-flow.png` (оригинал) | `backend-auth-flow-detailed.png` (подробная версия)
 
 ---
 

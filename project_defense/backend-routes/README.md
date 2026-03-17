@@ -1,6 +1,6 @@
 # Backend Routes
 
-**Изображение:** `backend-routes.png`
+**Изображения:** `backend-routes.png` (оригинал) | `backend-routes-detailed.png` (подробная версия)
 
 ---
 

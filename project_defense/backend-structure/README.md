@@ -1,6 +1,6 @@
 # Backend Structure
 
-**Изображение:** `backend-structure.png`
+**Изображения:** `backend-structure.png` (оригинал) | `backend-structure-detailed.png` (подробная версия)
 
 ---
 
