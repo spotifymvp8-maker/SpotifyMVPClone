@@ -115,7 +115,29 @@ const LibraryPage = () => {
               // ===== PLAYLISTS =====
               <>
                 <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4 md:grid-cols-4 lg:grid-cols-5">
-                  
+                  {/* Liked Songs / My Favorite Songs — виртуальный плейлист с любимыми треками */}
+                  <div
+                    className="group relative p-4 rounded-lg bg-gradient-to-br from-indigo-500/80 to-purple-600/80 hover:from-indigo-500 hover:to-purple-600 transition cursor-pointer"
+                    onClick={() => {
+                      if (likedSongs.length > 0) {
+                        playAlbum(likedSongs, 0);
+                      } else {
+                        setActiveTab("songs");
+                      }
+                    }}
+                  >
+                    <div className="aspect-square rounded mb-3 flex items-center justify-center bg-black/20">
+                      <Heart className="h-12 w-12 text-white" fill="currentColor" />
+                    </div>
+                    <p className="font-medium text-white truncate">Liked Songs</p>
+                    <p className="text-sm text-white/80">
+                      {likedSongs.length} {likedSongs.length === 1 ? "song" : "songs"}
+                    </p>
+                    {likedSongs.length === 0 && (
+                      <p className="text-xs text-white/60 mt-1">Click hearts to add</p>
+                    )}
+                  </div>
+
                   <div
                     className="relative p-4 rounded-lg bg-white/5 hover:bg-white/10 transition-colors min-h-[200px] flex items-center justify-center border-2 border-dashed border-white/20 cursor-pointer"
                     onClick={handleCreatePlaylist}
@@ -126,14 +148,27 @@ const LibraryPage = () => {
                     </p>
                   </div>
             
-                  {playlists.map((playlist) => (
-                    <PlaylistCard
-                      key={playlist.id}
-                      playlist={playlist}
-                      onPlay={handlePlayPlaylist}
-                      onDeleted={handleDeletePlaylist}
-                    />
-                  ))}
+                  {playlists.map((playlist) => {
+                    // "My Favorite Songs" — виртуальный плейлист: показываем liked songs
+                    const isFavoriteSongs = playlist.title === "My Favorite Songs";
+                    const displayPlaylist = isFavoriteSongs
+                      ? { ...playlist, tracks: likedSongs }
+                      : playlist;
+                    return (
+                      <PlaylistCard
+                        key={playlist.id}
+                        playlist={displayPlaylist}
+                        onPlay={(p) => {
+                          if (isFavoriteSongs && likedSongs.length > 0) {
+                            playAlbum(likedSongs, 0);
+                          } else {
+                            handlePlayPlaylist(p);
+                          }
+                        }}
+                        onDeleted={handleDeletePlaylist}
+                      />
+                    );
+                  })}
                 </div>
               </>
         

@@ -9,7 +9,7 @@
 
 ## Diagram 1: Architecture Overview
 
-**Папка:** `architecture-overview/`  
+**Папка:** `01_architecture-overview/`  
 **Файл:** `architecture-overview.png`
 
 High-level architecture showing all components running in Docker containers:
@@ -31,7 +31,7 @@ All services run inside Docker containers. Nginx routes:
 
 ## Diagram 2: Request Flow
 
-**Папка:** `architecture-request-flow/`  
+**Папка:** `02_architecture-request-flow/`  
 **Файл:** `architecture-request-flow.png`
 
 Request routing flow:
@@ -61,7 +61,7 @@ Request routing flow:
 
 ## Diagram 3: Backend Structure
 
-**Папка:** `backend-structure/`  
+**Папка:** `03_backend-structure/`  
 **Файл:** `backend-structure.png`
 
 Structure of the `app/` package:
@@ -79,7 +79,7 @@ Structure of the `app/` package:
 
 ## Diagram 4: Request Processing Flow
 
-**Папка:** `backend-request-flow/`  
+**Папка:** `06_backend-request-flow/`  
 **Файл:** `backend-request-flow.png`
 
 Flow of a single HTTP request through the backend:
@@ -95,7 +95,7 @@ Flow of a single HTTP request through the backend:
 
 ## Diagram 5: Database Layer
 
-**Папка:** `backend-database-layer/`  
+**Папка:** `04_backend-database-layer/`  
 **Файл:** `backend-database-layer.png`
 
 SQLAlchemy + PostgreSQL:
@@ -110,7 +110,7 @@ SQLAlchemy + PostgreSQL:
 
 ## Diagram 6: JWT Authentication Flow
 
-**Папка:** `backend-auth-flow/`  
+**Папка:** `07_backend-auth-flow/`  
 **Файл:** `backend-auth-flow.png`
 
 **Login flow:**
@@ -129,7 +129,7 @@ SQLAlchemy + PostgreSQL:
 
 ## Diagram 7: API Routes Structure
 
-**Папка:** `backend-routes/`  
+**Папка:** `05_backend-routes/`  
 **Файл:** `backend-routes.png`
 
 All routers mounted in `main.py`:
@@ -153,7 +153,7 @@ All routers mounted in `main.py`:
 
 ## Diagram 8: Jamendo API Integration
 
-**Папка:** `jamendo-architecture/`  
+**Папка:** `13_jamendo-architecture/`  
 **Файл:** `jamendo-api-flow.png`
 
 Интеграция с внешним API Jamendo для поиска и импорта бесплатных треков (Creative Commons):
@@ -165,7 +165,7 @@ All routers mounted in `main.py`:
 - **Jamendo CDN** → прямой стриминг аудио в браузер (без скачивания на сервер)
 - **PostgreSQL** → таблица `tracks` с `file_url` (ссылка на Jamendo)
 
-Подробнее: `jamendo-architecture/README.md`
+Подробнее: `13_jamendo-architecture/README.md`
 
 ---
 
@@ -173,7 +173,7 @@ All routers mounted in `main.py`:
 
 ## Diagram 9: Frontend Structure
 
-**Папка:** `frontend-structure/`  
+**Папка:** `08_frontend-structure/`  
 **Файл:** `frontend-structure.png`
 
 Структура папки `frontend/src/`:
@@ -188,13 +188,13 @@ All routers mounted in `main.py`:
 - **providers/** — AuthProvider
 - **types/** — Song, Album, Playlist, User
 
-Подробнее: `frontend-structure/README.md`
+Подробнее: `08_frontend-structure/README.md`
 
 ---
 
 ## Diagram 10: Frontend Routes
 
-**Папка:** `frontend-routes/`  
+**Папка:** `09_frontend-routes/`  
 **Файл:** `frontend-routes.png`
 
 React Router маршруты и защита:
@@ -205,13 +205,13 @@ React Router маршруты и защита:
 - `/presentation` — публичная
 - `*` — NotFoundPage
 
-Подробнее: `frontend-routes/README.md`
+Подробнее: `09_frontend-routes/README.md`
 
 ---
 
 ## Diagram 11: Frontend State Flow
 
-**Папка:** `frontend-state-flow/`  
+**Папка:** `11_frontend-state-flow/`  
 **Файл:** `frontend-state-flow.png`
 
 Zustand stores:
@@ -222,13 +222,13 @@ Zustand stores:
 - **useArtistStore** — selectedArtist, openArtist
 - **useLibraryStore** — savedAlbums, likedSongs (persist в localStorage)
 
-Подробнее: `frontend-state-flow/README.md`
+Подробнее: `11_frontend-state-flow/README.md`
 
 ---
 
 ## Diagram 12: Frontend Auth Flow
 
-**Папка:** `frontend-auth-flow/`  
+**Папка:** `10_frontend-auth-flow/`  
 **Файл:** `frontend-auth-flow.png`
 
 **Login:** форма → POST /api/auth/login → токены в store и localStorage → редирект  
@@ -236,13 +236,13 @@ Zustand stores:
 
 AuthProvider слушает auth:logout и auth:token-refreshed.
 
-Подробнее: `frontend-auth-flow/README.md`
+Подробнее: `10_frontend-auth-flow/README.md`
 
 ---
 
 ## Diagram 13: Frontend Player Flow
 
-**Папка:** `frontend-player-flow/`  
+**Папка:** `12_frontend-player-flow/`  
 **Файл:** `frontend-player-flow.png`
 
 Поток воспроизведения:
@@ -253,7 +253,7 @@ AuthProvider слушает auth:logout и auth:token-refreshed.
 - Shuffle — алгоритм Фишера-Йейтса
 - Repeat — off / all / one
 
-Подробнее: `frontend-player-flow/README.md`
+Подробнее: `12_frontend-player-flow/README.md`
 
 ---
 

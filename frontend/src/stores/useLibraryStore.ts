@@ -34,16 +34,19 @@ export const useLibraryStore = create<LibraryStore>()(
 			isAlbumSaved: (id) => get().savedAlbums.some((a) => a.id === id),
 
 			likeSong: (song) =>
-				set((s) => ({
-					likedSongs: s.likedSongs.some((t) => t.id === song.id)
-						? s.likedSongs
-						: [song, ...s.likedSongs],
-				})),
+				set((s) => {
+					const sid = String(song.id);
+					if (s.likedSongs.some((t) => String(t.id) === sid)) return s;
+					return { likedSongs: [{ ...song, id: sid }, ...s.likedSongs] };
+				}),
 
 			unlikeSong: (id) =>
-				set((s) => ({ likedSongs: s.likedSongs.filter((t) => t.id !== id) })),
+				set((s) => ({
+					likedSongs: s.likedSongs.filter((t) => String(t.id) !== String(id)),
+				})),
 
-			isSongLiked: (id) => get().likedSongs.some((t) => t.id === id),
+			isSongLiked: (id) =>
+				get().likedSongs.some((t) => String(t.id) === String(id)),
 		}),
 		{ name: "spotify-library" }
 	)

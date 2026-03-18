@@ -6,11 +6,14 @@ import {
 	LogOut,
 	ChevronLeft,
 	ChevronRight,
+	Menu,
 } from "lucide-react";
+import { useMobileMenuStore } from "@/stores/useMobileMenuStore";
 import { Link, useNavigate } from "react-router-dom";
 
 const Topbar = () => {
 	const { user, logout, isAuthenticated } = useAuthStore();
+	const { toggle: toggleMobileMenu } = useMobileMenuStore();
 	const navigate = useNavigate();
 
 	const handleLogout = async () => {
@@ -24,6 +27,13 @@ const Topbar = () => {
 	return (
 		<div className="sticky top-0 z-10 flex items-center justify-between px-4 py-3 sm:px-5 md:px-6">
 			<div className="flex items-center gap-2">
+				<button
+					onClick={toggleMobileMenu}
+					className="flex lg:hidden h-8 w-8 items-center justify-center rounded-full bg-black/30 text-white transition-colors hover:bg-black/50"
+					aria-label="Open menu"
+				>
+					<Menu className="h-5 w-5" />
+				</button>
 				<button
 					onClick={handleBack}
 					className="flex h-8 w-8 items-center justify-center rounded-full bg-black/30 text-spotify-text-muted transition-colors hover:bg-black/50 hover:text-white disabled:opacity-50"

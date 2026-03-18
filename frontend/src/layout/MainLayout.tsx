@@ -1,5 +1,6 @@
 import { Outlet, useLocation } from "react-router-dom";
 import LeftSidebar from "./components/LeftSidebar";
+import MobileNavDrawer from "./components/MobileNavDrawer";
 import ArtistInfoSidebar from "./components/ArtistInfoSidebar";
 import AudioPlayer from "./components/AudioPlayer";
 import { PlaybackControls } from "./components/PlaybackControls";
@@ -29,8 +30,8 @@ const MainLayout = () => {
 			<AudioPlayer />
 
 			<div className="flex flex-1 min-h-0 overflow-hidden">
-				{/* Left sidebar */}
-				<aside className="hidden md:flex md:w-[88px] md:min-w-[88px] lg:w-[280px] lg:min-w-[280px] shrink-0 border-r border-white/10 bg-spotify-sidebar">
+				{/* Left sidebar - visible from lg (1024px) so burger menu stays longer */}
+				<aside className="hidden lg:flex lg:w-[280px] lg:min-w-[280px] shrink-0 border-r border-white/10 bg-spotify-sidebar">
 					<LeftSidebar />
 				</aside>
 
@@ -65,8 +66,8 @@ const MainLayout = () => {
 				</aside>
 			</div>
 
-			{/* Mobile / tablet floating artist button */}
-			<div className="hidden md:flex lg:hidden fixed right-2 bottom-24 z-30">
+			{/* Mobile / tablet floating artist button - when right rail is hidden */}
+			<div className="flex lg:hidden fixed right-2 bottom-24 z-30">
 				<Button
 					variant="ghost"
 					size="icon"
@@ -82,6 +83,7 @@ const MainLayout = () => {
 			</div>
 
 			<PlaybackControls />
+			<MobileNavDrawer />
 			<ArtistInfoSidebar />
 		</div>
 	);

@@ -3,12 +3,38 @@ Seed routes — API для загрузки тестовых данных.
 
 POST /api/seed/seed — создаёт пользователя, альбомы, треки, плейлист.
     ?force=true — обновить URL треков (SoundHelix) без пересоздания альбомов.
+
+Обложки альбомов и треков скачиваются локально (picsum.photos ненадёжен из браузера).
 """
 
+import uuid as uuid_module
+from pathlib import Path
+
+import httpx
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
 
 from app.database import get_db
+
+IMAGES_DIR = Path(__file__).resolve().parent.parent.parent / "media" / "images"
+
+
+def _download_image(url: str) -> str | None:
+    """Скачать изображение по URL и сохранить в media/images/. Вернуть локальный URL."""
+    if not url or not url.startswith("http"):
+        return None
+    try:
+        IMAGES_DIR.mkdir(parents=True, exist_ok=True)
+        with httpx.Client(timeout=10.0) as client:
+            resp = client.get(url, follow_redirects=True)
+            resp.raise_for_status()
+        ct = resp.headers.get("content-type", "image/jpeg").lower()
+        ext = ".png" if "png" in ct else ".webp" if "webp" in ct else ".jpg"
+        filename = f"{uuid_module.uuid4().hex}{ext}"
+        (IMAGES_DIR / filename).write_bytes(resp.content)
+        return f"/media/images/{filename}"
+    except Exception:
+        return None
 from app.models.auth_user import AuthUser
 from app.models.user_profile import UserProfile
 from app.models.album import Album
@@ -65,6 +91,33 @@ TEST_TRACKS = [
 ]
 
 
+@router.post("/fix-images")
+def fix_external_images(db: Session = Depends(get_db)):
+    """
+    Скачать все внешние обложки (http/https) и заменить на локальные пути.
+    Решает проблему с picsum.photos и другими внешними URL (CORS, таймауты).
+    """
+    PLACEHOLDER = "/album-placeholder.png"
+    updated_albums = 0
+    updated_tracks = 0
+    for album in db.query(Album).all():
+        if album.image_url and album.image_url.startswith("http"):
+            local = _download_image(album.image_url) or PLACEHOLDER
+            album.image_url = local
+            updated_albums += 1
+    for track in db.query(Track).all():
+        if track.image_url and track.image_url.startswith("http"):
+            local = _download_image(track.image_url) or PLACEHOLDER
+            track.image_url = local
+            updated_tracks += 1
+    db.commit()
+    return {
+        "message": "External images downloaded and replaced with local paths",
+        "albums_updated": updated_albums,
+        "tracks_updated": updated_tracks,
+    }
+
+
 @router.post("/seed")
 def seed_database(
     force: bool = Query(False, description="Перезаписать треки (обновить file_url)"),
@@ -111,34 +164,51 @@ def seed_database(
             }
 
         if force and existing_albums > 0:
-            # force=true: обновляем URL треков (например, на SoundHelix)
+            # force=true: обновляем URL треков и обложки альбомов (скачиваем локально)
+            PLACEHOLDER = "/album-placeholder.png"
+            albums = db.query(Album).all()
+            for i, album in enumerate(albums):
+                if i < len(TEST_ALBUMS):
+                    img = _download_image(TEST_ALBUMS[i]["image_url"]) or PLACEHOLDER
+                    album.image_url = img
             tracks = db.query(Track).all()
             for i, track in enumerate(tracks):
                 if i < len(TEST_TRACKS):
                     track.file_url = TEST_TRACKS[i]["file_url"]
-                    track.image_url = TEST_TRACKS[i]["image_url"]
                     track.duration = TEST_TRACKS[i]["duration"]
+                    img = _download_image(TEST_TRACKS[i]["image_url"]) or PLACEHOLDER
+                    track.image_url = img
             db.commit()
             return {
-                "message": "Track URLs updated successfully",
+                "message": "Track and album URLs updated successfully (images downloaded locally)",
+                "albums_updated": len(albums),
                 "tracks_updated": len(tracks),
             }
 
         # 3. Создаём альбомы и треки (по 3 трека на альбом)
+        # Обложки скачиваем локально — picsum.photos ненадёжен из браузера (CORS, таймауты)
+        PLACEHOLDER = "/album-placeholder.png"
         for idx, album_data in enumerate(TEST_ALBUMS):
-            album = Album(**album_data)
+            img_url = _download_image(album_data["image_url"]) or PLACEHOLDER
+            album = Album(
+                title=album_data["title"],
+                artist=album_data["artist"],
+                image_url=img_url,
+                release_year=album_data["release_year"],
+            )
             db.add(album)
             db.flush()
 
             # Добавляем треки для этого альбома
             start_idx = idx * 3
             for track_data in TEST_TRACKS[start_idx:start_idx + 3]:
+                track_img = _download_image(track_data["image_url"]) or img_url
                 track = Track(
                     title=track_data["title"],
                     artist=track_data["artist"],
                     duration=track_data["duration"],
                     file_url=track_data["file_url"],
-                    image_url=track_data["image_url"],
+                    image_url=track_img,
                     album_name=track_data.get("album_name", ""),
                     album_id=album.id
                 )
@@ -147,12 +217,13 @@ def seed_database(
 
         # 4. Треки без альбома (синглы)
         for track_data in TEST_TRACKS[9:]:
+            track_img = _download_image(track_data["image_url"]) or PLACEHOLDER
             track = Track(
                 title=track_data["title"],
                 artist=track_data["artist"],
                 duration=track_data["duration"],
                 file_url=track_data["file_url"],
-                image_url=track_data["image_url"],
+                image_url=track_img,
                 album_name=track_data.get("album_name", "")
             )
             db.add(track)

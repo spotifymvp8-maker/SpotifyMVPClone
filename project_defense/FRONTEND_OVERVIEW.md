@@ -120,7 +120,7 @@ frontend/
 └── index.html
 ```
 
-Подробнее: [frontend-structure/README.md](./frontend-structure/README.md)
+Подробнее: [frontend-structure/README.md](./08_frontend-structure/README.md)
 
 ---
 
@@ -139,7 +139,7 @@ frontend/
 | `/presentation` | PresentationPage | — | Публичный |
 | `*` | NotFoundPage | MainLayout | — |
 
-Подробнее: [frontend-routes/README.md](./frontend-routes/README.md)
+Подробнее: [frontend-routes/README.md](./09_frontend-routes/README.md)
 
 ---
 
@@ -153,7 +153,7 @@ frontend/
 | **useArtistStore** | selectedArtist, isSidebarOpen; openArtist, closeArtist, toggleSidebar |
 | **useLibraryStore** | savedAlbums, likedSongs (persist → localStorage); saveAlbum, likeSong |
 
-Подробнее: [frontend-state-flow/README.md](./frontend-state-flow/README.md)
+Подробнее: [frontend-state-flow/README.md](./11_frontend-state-flow/README.md)
 
 ---
 
@@ -165,7 +165,7 @@ frontend/
 4. **401:** interceptor вызывает `POST /api/auth/refresh` → новые токены → повтор запроса; при неудаче — `auth:logout` → редирект на `/login`.
 5. **Выход:** `logout()` → `POST /api/auth/logout` → `reset()` → очистка localStorage.
 
-Подробнее: [frontend-auth-flow/README.md](./frontend-auth-flow/README.md)
+Подробнее: [frontend-auth-flow/README.md](./10_frontend-auth-flow/README.md)
 
 ---
 
@@ -177,7 +177,7 @@ frontend/
 4. **Shuffle:** алгоритм Фишера-Йейтса — предварительное перемешивание очереди в `shuffledQueue`.
 5. **Repeat:** off → all → one → off; Repeat One обрабатывается в `AudioPlayer.handleEnded`.
 
-Подробнее: [frontend-player-flow/README.md](./frontend-player-flow/README.md)
+Подробнее: [frontend-player-flow/README.md](./12_frontend-player-flow/README.md)
 
 ---
 
@@ -185,11 +185,11 @@ frontend/
 
 | Папка | Описание |
 |-------|----------|
-| [frontend-structure](./frontend-structure/) | Структура папок и файлов |
-| [frontend-routes](./frontend-routes/) | Маршрутизация и защита |
-| [frontend-state-flow](./frontend-state-flow/) | Zustand stores и потоки данных |
-| [frontend-auth-flow](./frontend-auth-flow/) | Аутентификация и refresh токена |
-| [frontend-player-flow](./frontend-player-flow/) | Плеер, очередь, shuffle, repeat |
+| [08_frontend-structure](./08_frontend-structure/) | Структура папок и файлов |
+| [09_frontend-routes](./09_frontend-routes/) | Маршрутизация и защита |
+| [11_frontend-state-flow](./11_frontend-state-flow/) | Zustand stores и потоки данных |
+| [10_frontend-auth-flow](./10_frontend-auth-flow/) | Аутентификация и refresh токена |
+| [12_frontend-player-flow](./12_frontend-player-flow/) | Плеер, очередь, shuffle, repeat |
 
 ---
 
