@@ -1,6 +1,6 @@
 # Architecture Overview
 
-**Изображение:** `architecture-overview.png`
+**Изображения:** `architecture-overview.png` (оригинал) | `architecture-overview-detailed.png` (подробная версия)
 
 ---
 

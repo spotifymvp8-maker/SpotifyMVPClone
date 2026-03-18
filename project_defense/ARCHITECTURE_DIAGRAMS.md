@@ -169,4 +169,92 @@ All routers mounted in `main.py`:
 
 ---
 
+# Frontend — Detailed Diagrams
+
+## Diagram 9: Frontend Structure
+
+**Папка:** `frontend-structure/`  
+**Файл:** `frontend-structure.png`
+
+Структура папки `frontend/src/`:
+
+- **main.tsx** — точка входа, AuthProvider, BrowserRouter
+- **App.tsx** — роутинг, Routes, Toaster
+- **pages/** — Home, Search, Library, Album, Admin, Login, AddPlaylist, PlaylistEdit, Presentation, 404
+- **layout/** — MainLayout, LeftSidebar, PlaybackControls, AudioPlayer, ArtistInfoSidebar
+- **stores/** — useAuthStore, usePlayerStore, useMusicStore, useArtistStore, useLibraryStore
+- **components/** — Topbar, ui (Radix + Tailwind), skeletons
+- **lib/** — axios (JWT interceptor), utils
+- **providers/** — AuthProvider
+- **types/** — Song, Album, Playlist, User
+
+Подробнее: `frontend-structure/README.md`
+
+---
+
+## Diagram 10: Frontend Routes
+
+**Папка:** `frontend-routes/`  
+**Файл:** `frontend-routes.png`
+
+React Router маршруты и защита:
+
+- `/login` — LoginPage (редирект на `/` если авторизован)
+- `/`, `/search`, `/library`, `/albums/:id`, `/playlists/new`, `/playlists/:id` — MainLayout, требуют auth
+- `/admin` — AdminPage, вне MainLayout, требует auth
+- `/presentation` — публичная
+- `*` — NotFoundPage
+
+Подробнее: `frontend-routes/README.md`
+
+---
+
+## Diagram 11: Frontend State Flow
+
+**Папка:** `frontend-state-flow/`  
+**Файл:** `frontend-state-flow.png`
+
+Zustand stores:
+
+- **useAuthStore** — user, tokens, login, logout, refreshToken
+- **usePlayerStore** — currentSong, queue, playAlbum, playNext, shuffle, repeat
+- **useMusicStore** — albums, fetchAlbums, search, CRUD, upload, playlists
+- **useArtistStore** — selectedArtist, openArtist
+- **useLibraryStore** — savedAlbums, likedSongs (persist в localStorage)
+
+Подробнее: `frontend-state-flow/README.md`
+
+---
+
+## Diagram 12: Frontend Auth Flow
+
+**Папка:** `frontend-auth-flow/`  
+**Файл:** `frontend-auth-flow.png`
+
+**Login:** форма → POST /api/auth/login → токены в store и localStorage → редирект  
+**401:** запрос → 401 → axios interceptor → POST /api/auth/refresh → новые токены → повтор запроса
+
+AuthProvider слушает auth:logout и auth:token-refreshed.
+
+Подробнее: `frontend-auth-flow/README.md`
+
+---
+
+## Diagram 13: Frontend Player Flow
+
+**Папка:** `frontend-player-flow/`  
+**Файл:** `frontend-player-flow.png`
+
+Поток воспроизведения:
+
+- **usePlayerStore** — queue, currentSong, isPlaying, shuffle, repeat
+- **AudioPlayer** — скрытый `<audio>`, синхронизация с store, onEnded → playNext
+- **PlaybackControls** — UI: прогресс, кнопки, громкость
+- Shuffle — алгоритм Фишера-Йейтса
+- Repeat — off / all / one
+
+Подробнее: `frontend-player-flow/README.md`
+
+---
+
 *For defense presentation — March 2026*
