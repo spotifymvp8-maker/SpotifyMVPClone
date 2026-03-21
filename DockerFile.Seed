@@ -1,0 +1,22 @@
+# ---------- Stage 1: Python Base ----------
+FROM python:3.11-slim AS seed
+
+# Рабочая директория
+WORKDIR /app
+
+# Копируем зависимости
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Копируем код приложения + seed скрипт
+COPY app ./app
+COPY alembic ./alembic
+COPY alembic.ini .
+COPY seed.py .
+
+# Устанавливаем переменные окружения (DATABASE_URL задаётся в Railway)
+# Если переменная не задана, default берём локальный вариант
+ENV DATABASE_URL=${DATABASE_URL:-postgresql://postgres:postgres@localhost:5432/spotify_clone}
+
+# Запуск seed скрипта при старте
+CMD ["python", "seed.py"]
