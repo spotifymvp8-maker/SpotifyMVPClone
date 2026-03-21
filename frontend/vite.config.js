@@ -13,15 +13,15 @@ export default defineConfig({
         port: 3000,
         proxy: {
             '/api': {
-                target:  import.meta.env.VITE_BACKEND_URL,
+                target: 'https://spotifymvpclone.up.railway.app',
                 changeOrigin: true,
             },
             '/ws': {
-                target: import.meta.env.VITE_BACKEND_WS_URL,
+                target: 'wss://spotifymvpclone.up.railway.app',
                 ws: true,
             },
             '/media': {
-                target:  import.meta.env.VITE_BACKEND_URL,
+                target:  'https://spotifymvpclone.up.railway.app',
                 changeOrigin: true,
             }
         }
