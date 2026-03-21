@@ -13,15 +13,15 @@ export default defineConfig({
         port: 3000,
         proxy: {
             '/api': {
-                target: 'http://localhost:8000',
+                target:  import.meta.env.VITE_BACKEND_URL,
                 changeOrigin: true,
             },
             '/ws': {
-                target: 'ws://localhost:8000',
+                target: import.meta.env.VITE_BACKEND_WS_URL,
                 ws: true,
             },
             '/media': {
-                target: 'http://localhost:8000',
+                target:  import.meta.env.VITE_BACKEND_URL,
                 changeOrigin: true,
             }
         }
