@@ -16,7 +16,7 @@ COPY seed.py .
 
 # Устанавливаем переменные окружения (DATABASE_URL задаётся в Railway)
 # Если переменная не задана, default берём локальный вариант
-ENV DATABASE_URL=${DATABASE_URL:-postgresql://postgres:postgres@localhost:5432/spotify_clone}
+ENV DATABASE_URL=${DATABASE_URL}
 
 # Запуск seed скрипта при старте
 CMD ["python", "seed.py"]
