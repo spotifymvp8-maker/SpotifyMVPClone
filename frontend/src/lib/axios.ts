@@ -3,7 +3,7 @@ import axios, { InternalAxiosRequestConfig } from "axios";
 const TOKEN_KEY = "spotify_tokens";
 
 export const axiosInstance = axios.create({
-	baseURL: "/api",
+	baseURL: `${import.meta.env.VITE_BACKEND_URL}/api`,
 	withCredentials: true,
 });
 
